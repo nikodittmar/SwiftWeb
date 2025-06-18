@@ -11,19 +11,21 @@ import Testing
 struct TestController: Controller {}
 
 @Suite struct RouterTests {
-    let router = Router()
+    let builder = RouterBuilder()
     
     let emptyHandler: Handler = { _ in Response(status: .ok) }
     
     
     @Test func testGet() {
-        router.get("/users", to: emptyHandler)
+        builder.get("/users", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/users", method: .GET)
         #expect(match != nil)
     }
     
     @Test func testLongNonexistentRoute() {
-        router.get("/users", to: emptyHandler)
+        builder.get("/users", to: emptyHandler)
+        let router = builder.build()
         let extraComponent = router.match(uri: "/users/info", method: .GET)
         let extraParameter = router.match(uri: "/users/23", method: .GET)
         #expect(extraComponent == nil)
@@ -31,7 +33,8 @@ struct TestController: Controller {}
     }
     
     @Test func testShortNonexistentRoute() {
-        router.get("/users/comments/info", to: emptyHandler)
+        builder.get("/users/comments/info", to: emptyHandler)
+        let router = builder.build()
         let shortRoute = router.match(uri: "/users", method: .GET)
         let shortParameterRoute = router.match(uri: "/users/comments/124", method: .GET)
         #expect(shortRoute == nil)
@@ -39,44 +42,51 @@ struct TestController: Controller {}
     }
     
     @Test func testNonestistentMethod() {
-        router.get("/users", to: emptyHandler)
+        builder.get("/users", to: emptyHandler)
+        let router = builder.build()
         let postMatch = router.match(uri: "/users", method: .POST)
         #expect(postMatch == nil)
     }
     
     @Test func testPost() {
-        router.post("/users", to: emptyHandler)
+        builder.post("/users", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/users", method: .POST)
         #expect(match != nil)
     }
     
     @Test func testPatch() {
-        router.patch("/users/:id", to: emptyHandler)
+        builder.patch("/users/:id", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/users/432", method: .PATCH)
         #expect(match != nil)
     }
     
     @Test func testPut() {
-        router.put("/users/:id", to: emptyHandler)
+        builder.put("/users/:id", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/users/89", method: .PUT)
         #expect(match != nil)
     }
     
     @Test func testDelete() {
-        router.delete("/users/:id", to: emptyHandler)
+        builder.delete("/users/:id", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/users/673", method: .DELETE)
         #expect(match != nil)
     }
     
     @Test func testParameter() {
-        router.patch("/posts/:id", to: emptyHandler)
+        builder.patch("/posts/:id", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/posts/123", method: .PATCH)
         #expect(match != nil)
         #expect(match?.params["id"] == "123")
     }
     
     @Test func testNestedParameter() {
-        router.patch("/posts/:post_id/comments/:comment_id", to: emptyHandler)
+        builder.patch("/posts/:post_id/comments/:comment_id", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/posts/578/comments/127", method: .PATCH)
         #expect(match != nil)
         #expect(match?.params["post_id"] == "578")
@@ -84,7 +94,8 @@ struct TestController: Controller {}
     }
     
     @Test func testQueryParameter() {
-        router.get("/users", to: emptyHandler)
+        builder.get("/users", to: emptyHandler)
+        let router = builder.build()
         let match = router.match(uri: "/users?name=John&age=30", method: .GET)
         #expect(match != nil)
         #expect(match?.query["name"] == "John")
@@ -92,7 +103,8 @@ struct TestController: Controller {}
     }
     
     @Test func testResources() {
-        router.resources("/users", for: TestController.self, parameter: "user_id")
+        builder.resources("/users", for: TestController.self, parameter: "user_id")
+        let router = builder.build()
         let index = router.match(uri: "/users", method: .GET)
         let show = router.match(uri: "/users/12", method: .GET)
         let new = router.match(uri: "/users/new", method: .GET)
@@ -117,10 +129,10 @@ struct TestController: Controller {}
     }
     
     @Test func testNestedResources() {
-        router.resources("/users", for: TestController.self) { router in
+        builder.resources("/users", for: TestController.self) { router in
             router.resources("/posts", for: TestController.self, parameter: "post_id")
         }
-        
+        let router = builder.build()
         let index = router.match(uri: "/users/14/posts", method: .GET)
         let show = router.match(uri: "/users/78/posts/12", method: .GET)
         let new = router.match(uri: "/users/8992/posts/new", method: .GET)
@@ -153,7 +165,8 @@ struct TestController: Controller {}
     }
     
     @Test func testResourcesOnly() {
-        router.resources("/users", for: TestController.self, only: [ .show, .create])
+        builder.resources("/users", for: TestController.self, only: [ .show, .create])
+        let router = builder.build()
         let index = router.match(uri: "/users", method: .GET)
         let show = router.match(uri: "/users/12", method: .GET)
         let new = router.match(uri: "/users/new", method: .GET)
@@ -175,7 +188,8 @@ struct TestController: Controller {}
     }
     
     @Test func testResourcesExcept() {
-        router.resources("/users", for: TestController.self, except: [ .show, .create, .delete ])
+        builder.resources("/users", for: TestController.self, except: [ .show, .create, .delete ])
+        let router = builder.build()
         let index = router.match(uri: "/users", method: .GET)
         let show = router.match(uri: "/users/12", method: .GET)
         let new = router.match(uri: "/users/new", method: .GET)
@@ -198,16 +212,18 @@ struct TestController: Controller {}
     }
     
     @Test func testNamespace() {
-        router.namespace("/api/v1") { router in
+        builder.namespace("/api/v1") { router in
             router.get("/hello", to: emptyHandler)
         }
+        let router = builder.build()
         let match = router.match(uri: "/api/v1/hello", method: .GET)
         #expect(match != nil)
     }
     
     @Test func testRoutePrecedence() {
-        router.get("/users/:id", to: emptyHandler)
-        router.get("/users/new", to: emptyHandler)
+        builder.get("/users/:id", to: emptyHandler)
+        builder.get("/users/new", to: emptyHandler)
+        let router = builder.build()
         let dynamicRoute = router.match(uri: "/users/12", method: .GET)
         let staticRoute = router.match(uri: "/users/new", method: .GET)
         #expect(dynamicRoute != nil)

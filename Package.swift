@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftWeb",
+    platforms: [
+        .macOS(.v10_15),
+    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.59.0")
     ],

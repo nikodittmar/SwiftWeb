@@ -1,6 +1,9 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
 
-let router = Router()
-configureRoutes(router)
-router.printRoutes()
+let routerBuilder: RouterBuilder = RouterBuilder()
+
+configureRoutes(routerBuilder)
+let router: Router = routerBuilder.build()
+
+let application = Application(router: router)
+
+try! application.run()

@@ -5,7 +5,7 @@
 //  Created by Niko Dittmar on 6/16/25.
 //
 
-public protocol Controller {
+public protocol Controller: Sendable {
     init()
     func index(req: Request) -> Response
     func show(req: Request) -> Response
