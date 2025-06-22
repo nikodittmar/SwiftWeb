@@ -6,8 +6,8 @@
 //
 import PostgresNIO
 
-class PostgresDecoder {
-    func decode<T : Decodable>(_ type: T.Type, from row: PostgresRandomAccessRow) throws -> T {
+public class PostgresDecoder {
+    public func decode<T : Decodable>(_ type: T.Type, from row: PostgresRandomAccessRow) throws -> T {
         return try T(from: PostgresDecoderImpl(row: row))
     }
 }

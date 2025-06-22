@@ -7,15 +7,15 @@
 import PostgresNIO
 
 public class MigrationRunner {
-    let db: Database
-    let migrations: [Migration.Type]
+    private let db: Database
+    private let migrations: [Migration.Type]
     
-    init(db: Database, migrations: [Migration.Type]) {
+    public init(db: Database, migrations: [Migration.Type]) {
         self.db = db
         self.migrations = migrations
     }
     
-    func run() async throws {
+    public func run() async throws {
         try await createMigrationsTable()
         let ranMigrations = try await getMigrations()
         let pendingMigrations = migrations.filter { migration in

@@ -94,6 +94,8 @@ public final class Router: Sendable {
 }
 
 public final class RouterBuilder {
+    public init() {}
+    
     private var root: MutableRouteNode = MutableRouteNode()
     private var pathPrefix: String = ""
     

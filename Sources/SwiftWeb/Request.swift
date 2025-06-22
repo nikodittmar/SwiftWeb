@@ -15,7 +15,7 @@ public struct Request {
     public let params: [String: String]
     public let query: [String: String]
     
-    init(head: HTTPRequestHead, body: ByteBuffer?, params: [String: String], query: [String: String]) {
+    public init(head: HTTPRequestHead, body: ByteBuffer?, params: [String: String], query: [String: String]) {
         self.method = head.method
         self.headers = head.headers
         self.body = body

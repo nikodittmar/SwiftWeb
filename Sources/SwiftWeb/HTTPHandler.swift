@@ -8,8 +8,8 @@ import NIO
 import NIOHTTP1
 
 public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
-    typealias InboundIn = HTTPServerRequestPart
-    typealias OutboundOut = HTTPServerResponsePart
+    public typealias InboundIn = HTTPServerRequestPart
+    public typealias OutboundOut = HTTPServerResponsePart
     
     private enum State {
         case idle, waitingForRequestBody, sendingResponse
@@ -34,11 +34,11 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     
     private let responder: Responder
     
-    init(responder: Responder) {
+    public init(responder: Responder) {
         self.responder = responder
     }
     
-    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let reqPart = self.unwrapInboundIn(data)
         
         switch reqPart {

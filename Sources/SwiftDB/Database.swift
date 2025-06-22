@@ -7,9 +7,9 @@
 import PostgresNIO
 
 public final class Database: Sendable {
-    let client: PostgresClient
+    public let client: PostgresClient
     
-    init(eventLoopGroup: EventLoopGroup) {
+    public init(eventLoopGroup: EventLoopGroup) {
         let config = PostgresClient.Configuration(
             host: "localhost",
             port: 5432,
@@ -22,7 +22,7 @@ public final class Database: Sendable {
         self.client = PostgresClient(configuration: config, eventLoopGroup: eventLoopGroup)
     }
     
-    func run() {
+    public func run() {
         Task.detached {
             await self.client.run()
         }
