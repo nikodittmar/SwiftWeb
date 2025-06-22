@@ -12,7 +12,7 @@ public protocol Model: Codable, Sendable {
 }
 
 extension Model {
-    func save(on db: Database) async throws {
+    public func save(on db: Database) async throws {
         let mirror = Mirror(reflecting: self)
         
         let properties = mirror.children.filter { $0.label != "id" }
@@ -35,7 +35,7 @@ extension Model {
         try await db.client.query(query)
     }
     
-    static func all(on db: Database) async throws -> [Self] {
+    public static func all(on db: Database) async throws -> [Self] {
         let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema)")
         let rows = try await db.client.query(query).collect()
         
@@ -49,7 +49,7 @@ extension Model {
         return records
     }
     
-    static func find(on db: Database, id: Int) async throws -> Self {
+    public static func find(on db: Database, id: Int) async throws -> Self {
         let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema) WHERE id=\(id) LIMIT 1")
         let decoder = PostgresDecoder()
         
