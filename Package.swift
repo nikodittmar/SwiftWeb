@@ -6,25 +6,42 @@ import PackageDescription
 let package = Package(
     name: "SwiftWeb",
     platforms: [
-        .macOS(.v10_15),
+        .macOS(.v13),
+    ],
+    products: [
+        .library(name: "SwiftDB", targets: ["SwiftDB"]),
+        .library(name: "SwiftWeb", targets: ["SwiftWeb"]),
+        .executable(name: "SwiftWebCLI", targets: ["SwiftWebCLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.59.0")
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.59.0"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.21.0"),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
+        .target(name: "SwiftDB", dependencies: [
+            .product(name: "PostgresNIO", package: "postgres-nio"),
+        ]),
+        .target(name: "SwiftWeb", dependencies: [
+            .product(name: "NIO", package: "swift-nio"),
+            .product(name: "NIOHTTP1", package: "swift-nio"),
+            "SwiftDB"
+        ]),
         .executableTarget(
-            name: "SwiftWeb",
+            name: "SwiftWebCLI",
             dependencies: [
-                .product(name: "NIO", package: "swift-nio"),
-                .product(name: "NIOHTTP1", package: "swift-nio")
+                "SwiftWeb"
             ]
         ),
         .testTarget(
             name: "SwiftWebTests",
             dependencies: [
                 "SwiftWeb"
+            ]
+        ),
+        .testTarget(
+            name: "SwiftDBTests",
+            dependencies: [
+                "SwiftDB"
             ]
         )
     ]
