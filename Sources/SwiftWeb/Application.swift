@@ -6,6 +6,7 @@
 //
 import NIO
 import NIOHTTP1
+import SwiftDB
 
 public protocol Responder: Sendable {
     func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response
@@ -13,14 +14,16 @@ public protocol Responder: Sendable {
 
 public final class Application: Responder {
     let router: Router
+    let db: Database
     
-    public init(router: Router) {
+    public init(router: Router, db: Database) {
         self.router = router
+        self.db = db
     }
     
     public func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response {
         if let (handler, params, query) = router.match(uri: requestHead.uri, method: requestHead.method) {
-            let request: Request = Request(head: requestHead, body: body, params: params, query: query)
+            let request: Request = Request(head: requestHead, body: body, params: params, query: query, db: self.db)
             return await handler(request)
         } else {
             return Response(status: .notFound)
