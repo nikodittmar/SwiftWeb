@@ -69,6 +69,8 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
                     }
                     context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
                     self.state.responseComplete()
+                    self.body = nil
+                    self.requestHead = nil
                 }
             }
             
