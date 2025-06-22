@@ -7,7 +7,7 @@
 import NIO
 import NIOHTTP1
 
-final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
+public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
     

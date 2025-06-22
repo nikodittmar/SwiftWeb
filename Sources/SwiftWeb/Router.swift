@@ -27,7 +27,7 @@ private final class MutableRouteNode {
     var parameter: (name: String, node: MutableRouteNode)?
 }
 
-final class Router: Sendable {
+public final class Router: Sendable {
     private let root: RouteNode
     
     fileprivate init(root: RouteNode) {
@@ -93,7 +93,7 @@ final class Router: Sendable {
     }
 }
 
-final class RouterBuilder {
+public final class RouterBuilder {
     private var root: MutableRouteNode = MutableRouteNode()
     private var pathPrefix: String = ""
     

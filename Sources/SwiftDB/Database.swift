@@ -6,7 +6,7 @@
 //
 import PostgresNIO
 
-final class Database: Sendable {
+public final class Database: Sendable {
     let client: PostgresClient
     
     init(eventLoopGroup: EventLoopGroup) {

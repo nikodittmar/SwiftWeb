@@ -6,7 +6,7 @@
 //
 import PostgresNIO
 
-class MigrationRunner {
+public class MigrationRunner {
     let db: Database
     let migrations: [Migration.Type]
     

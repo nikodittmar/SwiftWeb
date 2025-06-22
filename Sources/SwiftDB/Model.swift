@@ -6,7 +6,7 @@
 //
 import PostgresNIO
 
-protocol Model: Codable, Sendable {
+public protocol Model: Codable, Sendable {
     static var schema: String { get }
     var id: Int? { get }
 }
@@ -60,6 +60,6 @@ extension Model {
     }
 }
 
-enum QueryError: Error {
+public enum QueryError: Error {
     case notFound
 }

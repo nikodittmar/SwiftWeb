@@ -4,7 +4,7 @@
 //
 //  Created by Niko Dittmar on 6/21/25.
 //
-protocol Migration {
+public protocol Migration {
     static var name: String { get }
     static func up(on db: Database) async throws
     static func down(on db: Database) async throws

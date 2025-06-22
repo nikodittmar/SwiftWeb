@@ -11,14 +11,14 @@ public protocol Responder: Sendable {
     func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response
 }
 
-final class Application: Responder {
+public final class Application: Responder {
     let router: Router
     
     init(router: Router) {
         self.router = router
     }
     
-    func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response {
+    public func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response {
         if let (handler, params, query) = router.match(uri: requestHead.uri, method: requestHead.method) {
             let request: Request = Request(head: requestHead, body: body, params: params, query: query)
             return await handler(request)
