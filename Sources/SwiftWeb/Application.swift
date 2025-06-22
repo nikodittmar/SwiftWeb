@@ -14,7 +14,7 @@ public protocol Responder: Sendable {
 public final class Application: Responder {
     let router: Router
     
-    init(router: Router) {
+    public init(router: Router) {
         self.router = router
     }
     
