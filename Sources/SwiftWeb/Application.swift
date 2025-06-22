@@ -13,12 +13,14 @@ public protocol Responder: Sendable {
 }
 
 public final class Application: Responder {
-    let router: Router
-    let db: Database
+    public let router: Router
+    public let db: Database
+    public let eventLoopGroup: EventLoopGroup
     
-    public init(router: Router, db: Database) {
+    public init(router: Router, db: Database, eventLoopGroup: EventLoopGroup) {
         self.router = router
         self.db = db
+        self.eventLoopGroup = eventLoopGroup
     }
     
     public func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response {
@@ -31,11 +33,9 @@ public final class Application: Responder {
     }
     
     public func run(port: Int = 4000) throws {
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-
-        defer { try! group.syncShutdownGracefully() }
+        defer { try! self.eventLoopGroup.syncShutdownGracefully() }
         
-        let bootstrap = ServerBootstrap(group: group)
+        let bootstrap = ServerBootstrap(group: eventLoopGroup)
             .serverChannelOption(ChannelOptions.backlog, value: 256)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
