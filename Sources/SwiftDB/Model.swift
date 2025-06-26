@@ -4,6 +4,7 @@
 //
 //  Created by Niko Dittmar on 6/21/25.
 //
+import Foundation
 import PostgresNIO
 
 public protocol Model: Codable, Sendable {
@@ -38,19 +39,20 @@ extension Model {
     public static func all(on db: Database) async throws -> [Self] {
         let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema)")
         let rows = try await db.client.query(query).collect()
-        
-        var records: [Self] = []
-        
+                
         let decoder = PostgresDecoder()
         
-        for row in rows.map({ PostgresRandomAccessRow($0) }) {
-            records.append(try decoder.decode(Self.self, from: row))
+        return try rows.map { row in
+            try decoder.decode(Self.self, from: row.makeRandomAccess())
         }
-        return records
     }
     
     public static func find(on db: Database, id: Int) async throws -> Self {
-        let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema) WHERE id=\(id) LIMIT 1")
+        var bindings = PostgresBindings(capacity: 1)
+        bindings.append(id)
+        
+        let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema) WHERE id = $1 LIMIT 1", binds: bindings)
+        
         let decoder = PostgresDecoder()
         
         if let row = try await db.client.query(query).collect().first {

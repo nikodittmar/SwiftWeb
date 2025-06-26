@@ -20,10 +20,47 @@ public struct Response: Sendable {
     }
     
     public static func json(_ json: String, status: HTTPResponseStatus = .ok) -> Response {
-        var headers: HTTPHeaders = HTTPHeaders()
-        headers.add(name: "content-type", value: "application/json")
         var buffer = ByteBufferAllocator().buffer(capacity: json.utf8.count)
         buffer.writeString(json)
+        
+        var headers = headers()
+        headers.add(name: "content-type", value: "application/json; charset=utf-8")
+        headers.add(name: "content-length", value: String(buffer.readableBytes))
+        
         return Response(status: status, headers: headers, body: buffer)
+    }
+    
+    public static func html(_ html: String, status: HTTPResponseStatus = .ok) -> Response {
+        var buffer = ByteBufferAllocator().buffer(capacity: html.utf8.count)
+        buffer.writeString(html)
+        
+        var headers = headers()
+        headers.add(name: "content-type", value: "text/html; charset=utf-8")
+        headers.add(name: "content-length", value: String(buffer.readableBytes))
+        
+        return Response(status: status, headers: headers, body: buffer)
+    }
+    
+    public static func headers() -> HTTPHeaders {
+        var headers = HTTPHeaders()
+        let date = Date.now.formatted(
+            Date.VerbatimFormatStyle(
+                format: """
+                \(weekday: .abbreviated), \
+                \(day: .twoDigits) \
+                \(month: .abbreviated) \ 
+                \(year: .defaultDigits) \
+                \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) \
+                \(timeZone: .specificName(.short))
+                """,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: .gmt,
+                calendar: Calendar(identifier: .gregorian)
+            )
+        )
+        headers.add(name: "date", value: date)
+        headers.add(name: "cache-control", value: "no-cache, no-store, must-revalidate")
+
+        return headers
     }
 }
