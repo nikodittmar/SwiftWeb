@@ -96,7 +96,7 @@ public enum Tokenizer {
 }
 
 /// A representation of a single, distinct segment within a template file.
-public enum Token {
+public enum Token: Equatable {
     /// A segment of plain, unprocessed text or HTML.
     case text(String)
     /// A segment representing an expression to be evaluated and inserted into the surrounding HTML, found within `<%= ... %>` tags.
