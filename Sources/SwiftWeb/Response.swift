@@ -41,6 +41,12 @@ public struct Response: Sendable {
         return Response(status: status, headers: headers, body: buffer)
     }
     
+    public static func redirect(to location: String) -> Response {
+        var headers = headers()
+        headers.add(name: "location", value: location)
+        return Response(status: .seeOther, headers: headers)
+    }
+    
     public static func headers() -> HTTPHeaders {
         var headers = HTTPHeaders()
         let date = Date.now.formatted(

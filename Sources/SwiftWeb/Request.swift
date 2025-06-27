@@ -31,15 +31,25 @@ public struct Request: Sendable {
         self.db = db
     }
     
-    public func decode<T: Decodable>(_ type: T.Type) throws -> T {
-        if let body = self.body {
-            return try JSONDecoder().decode(T.self, from: body)
-        } else {
+    public func decode<T : Decodable>(as type: T.Type) throws -> T {
+        guard let contentType = self.headers["content-type"].first else {
+            throw RequestError.missingContentType
+        }
+        
+        guard let decoder = RequestDecoder.decoder(for: contentType) else {
+            throw RequestError.unsupportedContentType
+        }
+        
+        guard let body = self.body else {
             throw RequestError.noBody
         }
+        
+        return try decoder.decode(T.self, from: Data(buffer: body))
     }
 }
 
-enum RequestError: Error {
+public enum RequestError: Error {
+    case missingContentType
+    case unsupportedContentType
     case noBody
 }

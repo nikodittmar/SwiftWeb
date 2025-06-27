@@ -11,6 +11,7 @@ let package = Package(
     products: [
         .library(name: "SwiftDB", targets: ["SwiftDB"]),
         .library(name: "SwiftWeb", targets: ["SwiftWeb"]),
+        .library(name: "SwiftView", targets: ["SwiftView"]),
         .executable(name: "SwiftWebCLI", targets: ["SwiftWebCLI"])
     ],
     dependencies: [
@@ -18,6 +19,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.21.0"),
     ],
     targets: [
+        .target(name: "SwiftView", dependencies: []),
         .target(name: "SwiftDB", dependencies: [
             .product(name: "PostgresNIO", package: "postgres-nio"),
         ]),
@@ -42,6 +44,12 @@ let package = Package(
             name: "SwiftDBTests",
             dependencies: [
                 "SwiftDB"
+            ]
+        ),
+        .testTarget(
+            name: "SwiftViewTests",
+            dependencies: [
+                "SwiftView"
             ]
         )
     ]

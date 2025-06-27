@@ -4,13 +4,26 @@
 //
 //  Created by Niko Dittmar on 6/22/25.
 //
+import Foundation
 
-public enum URLQueryDecoder {
+public struct URLQueryDecoder {
     public static func decode<T : Decodable>(_ type: T.Type, from query: String) throws -> T {
         let queryItems = try URLQueryParser.parse(query, mode: .encodedForm)
         let unflattenedQueryItems = try URLQueryUnflattener.unflatten(queryItems)
         
         return try T(from: _URLQueryDecoder(query: unflattenedQueryItems))
+    }
+    
+    public func decode<T : Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        guard let query = String(data: data, encoding: .utf8) else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: [],
+                    debugDescription: "The given data was not a valid UTF-8 string."
+                )
+            )
+        }
+        return try URLQueryDecoder.decode(type, from: query)
     }
 }
 
