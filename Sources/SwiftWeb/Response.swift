@@ -19,6 +19,11 @@ public struct Response: Sendable {
         self.body = body
     }
     
+    public static func view<T: Encodable>(_ name: String, with context: T, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response {
+        let html = try request.app.views.render(name, with: context)
+        return .html(html, status: status)
+    }
+    
     public static func json(_ json: String, status: HTTPResponseStatus = .ok) -> Response {
         var buffer = ByteBufferAllocator().buffer(capacity: json.utf8.count)
         buffer.writeString(json)

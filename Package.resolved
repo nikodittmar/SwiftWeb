@@ -1,5 +1,5 @@
 {
-  "originHash" : "f85875e13243b9b6f6a93b54f1cba93a274e3d14a65f5403b14a52e9f60b2de9",
+  "originHash" : "ea9577263626e984960431cf788a6dac8446e0f3b30d23c7c8635279dc4fa891",
   "pins" : [
     {
       "identity" : "postgres-nio",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "ccb25dcc428587224633a79c0ce0430eeac3dc0f",
         "version" : "1.26.2"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "309a47b2b1d9b5e991f36961c983ecec72275be3",
+        "version" : "1.6.1"
       }
     },
     {

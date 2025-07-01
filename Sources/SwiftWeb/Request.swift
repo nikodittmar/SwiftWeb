@@ -20,15 +20,15 @@ public struct Request: Sendable {
     public let path: String
     public let params: [String: String]
     public let query: [String: String]
-    public let db: Database
+    public let app: Application
     
-    public init(head: HTTPRequestHead, body: ByteBuffer?, params: [String: String], query: [String: String], db: Database) {
+    public init(head: HTTPRequestHead, body: ByteBuffer?, params: [String: String], query: [String: String], app: Application) {
         self.head = head
         self.body = body
         self.path = head.uri
         self.params = params
         self.query = query
-        self.db = db
+        self.app = app
     }
     
     public func decode<T : Decodable>(as type: T.Type) throws -> T {

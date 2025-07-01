@@ -4,4 +4,32 @@
 //
 //  Created by Niko Dittmar on 6/21/25.
 //
-print("Hello World")
+import ArgumentParser
+
+struct SwiftWebCLI: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "swiftweb",
+        abstract: "A command-line tool for the SwiftWeb framework.",
+        subcommands: [New.self],
+        defaultSubcommand: New.self // Optional: `new` is the default
+    )
+}
+
+extension SwiftWebCLI {
+    struct New: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "new",
+            abstract: "Creates a new SwiftWeb project from a template."
+        )
+
+        @Argument(help: "The name of the new project to generate.")
+        var projectName: String
+
+        func run() throws {
+            let generator = ProjectGenerator(projectName: projectName)
+            try generator.generate()
+        }
+    }
+}
+
+SwiftWebCLI.main()

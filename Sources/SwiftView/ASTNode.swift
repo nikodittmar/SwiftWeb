@@ -5,7 +5,7 @@
 //  Created by Niko Dittmar on 6/30/25.
 //
 
-enum ASTNode: Equatable {
+enum ASTNode: Equatable, Sendable {
     case text(String)
     case expression(String)
     case conditional(branches: [Branch], alternative: [ASTNode]?)
