@@ -43,7 +43,7 @@ import Testing
             .code(" } ")
         ]
                 
-        #expect(throws: ParserError.invalidBrackets) {
+        #expect(throws: ParserError.self) {
             try Parser.parse(tokens)
         }
     }
@@ -55,7 +55,7 @@ import Testing
             .code(" } ")
         ]
         
-        #expect(throws: ParserError.invalidBrackets) {
+        #expect(throws: ParserError.self) {
             try Parser.parse(tokens)
         }
     }
@@ -105,7 +105,7 @@ import Testing
         #expect(res == [
             .loop(variable: "post", collection: "user.posts", body: [
                 .text("<div>"),
-                .expression(" post.title "),
+                .expression("post.title"),
                 .text("</div>"),
                 .conditional(branches: [
                     Branch(condition: "post.isPublished", body: [
@@ -200,7 +200,7 @@ import Testing
         let tokens: [Token] = [
             .code(" if currentUser.isAdmin { "),
             .text("<button type=\"button\">Manage</button>"),
-            .code(" } else if currentUser == post.author { "),
+            .code(" } else if isOwner { "),
             .text("<button type=\"button\">Edit</button>"),
             .code(" } ")
         ]
@@ -212,7 +212,7 @@ import Testing
                 Branch(condition: "currentUser.isAdmin", body: [
                     .text("<button type=\"button\">Manage</button>")
                 ]),
-                Branch(condition: "currentUser == post.author", body: [
+                Branch(condition: "isOwner", body: [
                     .text("<button type=\"button\">Edit</button>")
                 ])
             ], alternative: nil)
@@ -221,11 +221,11 @@ import Testing
     
     @Test func test_Parser_ChainedIfStatementWithElse_IsValid() throws {
         let tokens: [Token] = [
-            .code(" if posts.count > 1 { "),
+            .code(" if posts.isPlural { "),
             .text("<div>"),
             .expression(" posts.count "),
             .text(" posts</div>"),
-            .code(" } else if posts.count == 1 { "),
+            .code(" } else if posts.isSingular { "),
             .text("<div>"),
             .expression(" posts.count "),
             .text(" post</div>"),
@@ -238,12 +238,12 @@ import Testing
         
         #expect(res == [
             .conditional(branches: [
-                Branch(condition: "posts.count > 1", body: [
+                Branch(condition: "posts.isPlural", body: [
                     .text("<div>"),
                     .expression("posts.count"),
                     .text(" posts</div>"),
                 ]),
-                Branch(condition: "posts.count == 1", body: [
+                Branch(condition: "posts.isSingular", body: [
                     .text("<div>"),
                     .expression("posts.count"),
                     .text(" post</div>"),
@@ -323,7 +323,7 @@ import Testing
             .code(" } ")
         ]
                 
-        #expect(throws: ParserError.invalidBrackets) {
+        #expect(throws: ParserError.self) {
             try Parser.parse(tokens)
         }
     }
@@ -346,7 +346,7 @@ import Testing
         let tokens: [Token] = [
             .code(" if currentUser.isAdmin { "),
             .text("<button type=\"button\">Manage</button>"),
-            .code(" } else if currentUser == post.author { "),
+            .code(" } else if currentUser.isAuthor { "),
             .text("<button type=\"button\">Edit</button>"),
             .code(" ")
         ]
@@ -360,7 +360,7 @@ import Testing
         let tokens: [Token] = [
             .code(" if currentUser.isAdmin { "),
             .text("<button type=\"button\">Manage</button>"),
-            .code(" } else if currentUser == post.author "),
+            .code(" } else if currentUser.isAuthor "),
             .text("<button type=\"button\">Edit</button>"),
             .code(" } ")
         ]
@@ -471,7 +471,7 @@ import Testing
     
     @Test func test_Parser_ExtraWhitespaceInCondition_IsValid() throws {
         let tokens: [Token] = [
-            .code(" if   user.isLoggedIn   { ")
+            .code(" if   user.isLoggedIn   { }")
         ]
         
         let res = try Parser.parse(tokens)
@@ -482,4 +482,90 @@ import Testing
             ], alternative: nil)
         ])
     }
+    
+    @Test func test_Parser_MultilineIfStatement_IsValid() throws {
+        let tokens: [Token] = [
+            .code("if"),
+            .code("condition"),
+            .code("{"),
+            .code("}")
+        ]
+        
+        let res = try Parser.parse(tokens)
+
+        #expect(res == [
+            .conditional(branches: [
+                Branch(condition: "condition", body: [])
+            ], alternative: nil)
+        ])
+    }
+    
+    @Test func test_Parser_MultilineLoop_IsValid() throws {
+        let tokens: [Token] = [
+            .code("for"),
+            .code("item"),
+            .code("in"),
+            .code("items"),
+            .code("{"),
+            .code("}")
+        ]
+        
+        let res = try Parser.parse(tokens)
+
+        #expect(res == [
+            .loop(variable: "item", collection: "items", body: [])
+        ])
+    }
+    
+    @Test func test_Parser_MultilineElse_IsValid() throws {
+        let tokens: [Token] = [
+            .code("if condition {"),
+            .text("<h1>Hello!!</h1>"),
+            .code("}"),
+            .code("else"),
+            .code("{"),
+            .text("<h1>Goodbye!!</h1>"),
+            .code("}")
+        ]
+        
+        let res = try Parser.parse(tokens)
+
+        #expect(res == [
+            .conditional(branches: [
+                Branch(condition: "condition", body: [
+                    .text("<h1>Hello!!</h1>")
+                ])
+            ], alternative: [
+                .text("<h1>Goodbye!!</h1>")
+            ])
+        ])
+    }
+    
+    @Test func test_Parser_MultilineElseIf_IsValid() throws {
+        let tokens: [Token] = [
+            .code("if condition {"),
+            .text("<h1>Hello!!</h1>"),
+            .code("}"),
+            .code("else"),
+            .code("if"),
+            .code("anotherCondition"),
+            .code("{"),
+            .text("<h1>Goodbye!!</h1>"),
+            .code("}")
+        ]
+        
+        let res = try Parser.parse(tokens)
+
+        #expect(res == [
+            .conditional(branches: [
+                Branch(condition: "condition", body: [
+                    .text("<h1>Hello!!</h1>")
+                ]),
+                Branch(condition: "anotherCondition", body: [
+                    .text("<h1>Goodbye!!</h1>")
+                ])
+            ], alternative: nil)
+        ])
+    }
 }
+

@@ -11,7 +11,7 @@
 /// - Plain text and HTML.
 /// - Expressions to be evaluated and printed (e.g., `<%= user.name %>`).
 /// - Control flow code to be executed (e.g., `<% if user.isLoggedIn { %>`).
-public enum Tokenizer {
+enum Tokenizer {
     
     /// Transforms a template string into an array of ``Token``s.
     ///
@@ -21,7 +21,7 @@ public enum Tokenizer {
     /// - Parameter input: The raw template string to be tokenized.
     /// - Returns: An array of ``Token``s representing the structured content of the template.
     /// - Throws: ``TokenizerError/unclosedTag`` if the input ends while a tag is still open.
-    public static func tokenize(_ input: String) throws -> [Token] {
+    static func tokenize(_ input: String) throws -> [Token] {
 
         var state: State = .readingText
         var tokens: [Token] = []
@@ -96,7 +96,7 @@ public enum Tokenizer {
 }
 
 /// A representation of a single, distinct segment within a template file.
-public enum Token: Equatable {
+enum Token: Equatable {
     /// A segment of plain, unprocessed text or HTML.
     case text(String)
     /// A segment representing an expression to be evaluated and inserted into the surrounding HTML, found within `<%= ... %>` tags.
@@ -106,7 +106,7 @@ public enum Token: Equatable {
 }
 
 /// An error that can occur during the tokenization process.
-public enum TokenizerError: Error {
+enum TokenizerError: Error {
     /// Thrown when the end of the input string is reached while the tokenizer is still inside an open tag.
     case unclosedTag
 }
