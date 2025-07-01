@@ -42,7 +42,11 @@ public final class Views: Sendable {
     public init(viewsDirectory: URL) {
         var loadedViews: [String: [ASTNode]] = [:]
         
-        guard let contents = FileManager.default.enumerator(atPath: viewsDirectory.path) else {
+        guard let contents = FileManager.default.enumerator(
+            at: viewsDirectory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else {
             fatalError("[SwiftView] ❌ Failed to load the contents of the views directory.")
         }
         
