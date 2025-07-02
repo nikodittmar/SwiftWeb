@@ -9,7 +9,7 @@ import ArgumentParser
 struct SwiftWebGenerator: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swiftweb",
-        abstract: "A command-line tool for the SwiftWeb framework.",
+        abstract: "A command-line tool to generate a new SwiftWeb project.",
         subcommands: [New.self],
         defaultSubcommand: New.self
     )

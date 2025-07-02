@@ -5,6 +5,11 @@ struct HelloController: Controller {
         struct Context: Codable {
             let title: String
         }
-        return .view("welcome", with: Context(title: "SwiftWeb!"), on: req)
+        do {
+            return try .view("welcome", with: Context(title: "SwiftWeb!"), on: req)
+        } catch {
+            print("[SwiftWeb] ❌ Error rendering view: \(error)")
+            return .html("error")
+        }
     }
 }

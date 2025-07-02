@@ -8,7 +8,7 @@ import SwiftDB
 import ArgumentParser
 
 public protocol ApplicationConfig {
-    static var migrations: [Migration] { get }
+    static var migrations: [Migration.Type] { get }
     static var port: Int { get }
     static func configureRoutes() -> Router
 }

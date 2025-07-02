@@ -33,38 +33,43 @@ struct ProjectGenerator {
     }
 
     
+    // In Sources/SwiftWebGenerator/ProjectGenerator.swift
+
     private func copyTemplate(from sourceURL: URL, to destinationURL: URL) throws {
-        guard let enumerator = fileManager.enumerator(
-            at: sourceURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [],
-            errorHandler: nil
-        ) else {
-            struct GenerationError: Error, LocalizedError {
-                var errorDescription: String? = "Failed to create a file enumerator for the template directory."
-            }
-            throw GenerationError()
-        }
-
+        // Get the contents of the source directory
+        let contents = try fileManager.contentsOfDirectory(at: sourceURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
+        
+        // Create the destination directory
         try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true, attributes: nil)
-
-        for case let sourceItemURL as URL in enumerator {
-            var relativePath = sourceItemURL.path.replacingOccurrences(of: sourceURL.path, with: "")
-            if relativePath.contains("__PROJECT_NAME__") {
-                relativePath = relativePath.replacingOccurrences(of: "__PROJECT_NAME__", with: projectName)
-            }
+        
+        // Loop through each item in the source directory
+        for sourceItemURL in contents {
+            // Create the destination path
+            var destinationItemURL = destinationURL.appendingPathComponent(sourceItemURL.lastPathComponent)
             
-            let destinationItemURL = destinationURL.appendingPathComponent(relativePath)
+            // --- This is the key part that handles renaming the __PROJECT_NAME__ folder ---
+            if destinationItemURL.lastPathComponent.contains("__PROJECT_NAME__") {
+                let newName = destinationItemURL.lastPathComponent.replacingOccurrences(of: "__PROJECT_NAME__", with: projectName)
+                destinationItemURL.deleteLastPathComponent()
+                destinationItemURL.appendPathComponent(newName)
+            }
 
+            // Check if the item is a directory
             let isDirectory = (try? sourceItemURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-
+            
             if isDirectory {
-                try fileManager.createDirectory(at: destinationItemURL, withIntermediateDirectories: true, attributes: nil)
+                // If it's a directory, call this function again recursively
+                try copyTemplate(from: sourceItemURL, to: destinationItemURL)
             } else {
+                // If it's a file, read its content, replace the placeholder, and write it
                 var content = try String(contentsOf: sourceItemURL, encoding: .utf8)
                 content = content.replacingOccurrences(of: "__PROJECT_NAME__", with: projectName)
                 try content.write(to: destinationItemURL, atomically: true, encoding: .utf8)
             }
         }
     }
+}
+
+public enum ProjectGeneratorError: Error {
+    case failedToGetDirectory
 }
