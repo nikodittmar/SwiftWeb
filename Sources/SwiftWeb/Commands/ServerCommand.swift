@@ -24,9 +24,7 @@ struct ServerCommand<T: ApplicationConfig>: ParsableCommand {
         
         let router: Router = T.configureRoutes()
         
-        guard let viewsDirectory = Bundle.main.url(forResource: "Views", withExtension: nil) else {
-            fatalError("Could not find the Views directory. Check your Package.swift resources.")
-        }
+        let viewsDirectory = T.viewsDirectory
         
         let views = Views(viewsDirectory: viewsDirectory)
         

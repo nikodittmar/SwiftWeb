@@ -6,11 +6,13 @@
 //
 import SwiftDB
 import ArgumentParser
+import Foundation
 
 public protocol ApplicationConfig {
     static var migrations: [Migration.Type] { get }
     static var port: Int { get }
     static func configureRoutes() -> Router
+    static var viewsDirectory: URL { get }
 }
 
 public struct CLI<T: ApplicationConfig>: ParsableCommand {
