@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "SwiftDB", targets: ["SwiftDB"]),
         .library(name: "SwiftWeb", targets: ["SwiftWeb"]),
         .library(name: "SwiftView", targets: ["SwiftView"]),
-        .executable(name: "swiftweb", targets: ["SwiftWebCLI"])
+        .executable(name: "swiftweb", targets: ["SwiftWebGenerator"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.59.0"),
@@ -27,13 +27,13 @@ let package = Package(
         .target(name: "SwiftWeb", dependencies: [
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOHTTP1", package: "swift-nio"),
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
             "SwiftDB",
             "SwiftView"
         ]),
         .executableTarget(
-            name: "SwiftWebCLI",
+            name: "SwiftWebGenerator",
             dependencies: [
-                "SwiftWeb",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             resources: [

@@ -6,16 +6,16 @@
 //
 import ArgumentParser
 
-struct SwiftWebCLI: ParsableCommand {
+struct SwiftWebGenerator: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swiftweb",
         abstract: "A command-line tool for the SwiftWeb framework.",
         subcommands: [New.self],
-        defaultSubcommand: New.self // Optional: `new` is the default
+        defaultSubcommand: New.self
     )
 }
 
-extension SwiftWebCLI {
+extension SwiftWebGenerator {
     struct New: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "new",
@@ -32,4 +32,4 @@ extension SwiftWebCLI {
     }
 }
 
-SwiftWebCLI.main()
+SwiftWebGenerator.main()
