@@ -48,6 +48,8 @@ struct MigrateCommand<T: ApplicationConfig>: AsyncParsableCommand {
 
         let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
 
+        db.run()
+
         print("Database configured successfully.")
     
         do {
