@@ -17,6 +17,7 @@ public protocol ApplicationConfig {
     static var dotEnvPath: URL { get }
 }
 
+@available(macOS 13, *)
 public struct CLI<T: ApplicationConfig>: AsyncParsableCommand {
     public static var configuration: CommandConfiguration {
         CommandConfiguration(
