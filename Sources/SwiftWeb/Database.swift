@@ -14,21 +14,15 @@ func configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup) throws -> Da
         throw GetDatabaseError.missingDatabaseName
     }
 
-    print("Got database name: \(dbName)")
-
     guard let username = ProcessInfo.processInfo.environment["DATABASE_USER"] else {
         print("[SwiftWeb] ❌ Error: Database username not found in .env file.")
         throw GetDatabaseError.missingDatabaseUser
     }
 
-    print("Got database username: \(username)")
-
     guard let host = ProcessInfo.processInfo.environment["DATABASE_HOST"] else {
         print("[SwiftWeb] ❌ Error: Database host not found in .env file.")
         throw GetDatabaseError.missingDatabaseHost
     }
-
-    print("Got database host: \(host)")
 
     var password = ProcessInfo.processInfo.environment["DATABASE_PASSWORD"]
 
@@ -50,7 +44,6 @@ func configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup) throws -> Da
 
 func migrateDatabase(db: Database, migrations: [Migration.Type]) async throws {
     let migrationRunner = MigrationRunner(db: db, migrations: migrations)
-    print("running migration runner with \(migrations.count) migrations")
     try await migrationRunner.run()
 }
 

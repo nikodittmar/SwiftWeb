@@ -17,7 +17,6 @@ public class MigrationRunner {
     
     public func run() async throws {
         try await createMigrationsTable()
-        print("[SwiftWeb] 🏗️ Running migrations...")
         let ranMigrations = try await getMigrations()
         let pendingMigrations = migrations.filter { migration in
             !ranMigrations.contains(migration.name)
