@@ -1,5 +1,5 @@
 //
-//  Database.swift
+//  DatabaseCommand.swift
 //  SwiftWeb
 //
 //  Created by Niko Dittmar on 7/2/25.
@@ -32,7 +32,7 @@ struct MigrateCommand<T: ApplicationConfig>: ParsableCommand {
         )
     }
     
-    func run() async throws {
+    func run() throws {
         print("[SwiftWeb] ⚙️ Running migrations...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
@@ -42,12 +42,14 @@ struct MigrateCommand<T: ApplicationConfig>: ParsableCommand {
 
         let db = try configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
 
-        do {
-            try await migrateDatabase(db: db, migrations: T.migrations)
-            print("[SwiftWeb] ✅ Migrations completed successfully!")
-        } catch {
-            print("[SwiftWeb] ❌ Error running migrations: \(error)")
-        } 
+        Task {
+            do {
+                try await migrateDatabase(db: db, migrations: T.migrations)
+                print("[SwiftWeb] ✅ Migrations completed successfully!")
+            } catch {
+                print("[SwiftWeb] ❌ Error running migrations: \(error)")
+            } 
+        }
     }
 }
 
@@ -127,7 +129,7 @@ struct ResetCommand<T: ApplicationConfig>: ParsableCommand {
         )
     }
     
-    func run() async throws {
+    func run() throws {
         print("[SwiftWeb] 🔄 Resetting PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
@@ -142,12 +144,15 @@ struct ResetCommand<T: ApplicationConfig>: ParsableCommand {
 
         _ = try shell("dropdb \(dbName)")
         _ = try shell("createdb \(dbName)")
-        let db = try configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
-        do {
-            try await migrateDatabase(db: db, migrations: T.migrations)
-            print("[SwiftWeb] ✅ Database '\(dbName)' reset successfully!")
-        } catch {
-            print("[SwiftWeb] ❌ Error resetting database: \(error)")
+
+        Task {
+            let db = try configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
+            do {
+                try await migrateDatabase(db: db, migrations: T.migrations)
+                print("[SwiftWeb] ✅ Database '\(dbName)' reset successfully!")
+            } catch {
+                print("[SwiftWeb] ❌ Error resetting database: \(error)")
+            }
         }
     }
 }
