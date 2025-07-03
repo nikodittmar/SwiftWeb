@@ -52,7 +52,7 @@ struct MigrateCommand<T: ApplicationConfig>: AsyncParsableCommand {
             print("[SwiftWeb] ❌ Error running migrations: \(error)")
         } 
 
-        try await eventLoopGroup.shutdownGracefully()
+        Foundation.exit(0)
     }
 }
 
@@ -151,7 +151,7 @@ struct ResetCommand<T: ApplicationConfig>: AsyncParsableCommand {
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
         let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
-        
+
         do {
             try await migrateDatabase(db: db, migrations: T.migrations)
             print("[SwiftWeb] ✅ Database '\(dbName)' reset successfully!")
@@ -159,6 +159,6 @@ struct ResetCommand<T: ApplicationConfig>: AsyncParsableCommand {
             print("[SwiftWeb] ❌ Error resetting database: \(error)")
         }
 
-        try await eventLoopGroup.shutdownGracefully()
+        Foundation.exit(0)
     }
 }
