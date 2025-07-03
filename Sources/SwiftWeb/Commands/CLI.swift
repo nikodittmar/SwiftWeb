@@ -17,7 +17,7 @@ public protocol ApplicationConfig {
     static var dotEnvPath: URL { get }
 }
 
-public struct CLI<T: ApplicationConfig>: ParsableCommand {
+public struct CLI<T: ApplicationConfig>: AsyncParsableCommand {
     public static var configuration: CommandConfiguration {
         CommandConfiguration(
             abstract: "A SwiftWeb Application",

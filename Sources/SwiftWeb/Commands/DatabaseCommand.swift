@@ -24,7 +24,7 @@ struct DatabaseCommand<T: ApplicationConfig>: ParsableCommand {
     }
 }
 
-struct MigrateCommand<T: ApplicationConfig>: ParsableCommand {
+struct MigrateCommand<T: ApplicationConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "migrate",
@@ -32,7 +32,7 @@ struct MigrateCommand<T: ApplicationConfig>: ParsableCommand {
         )
     }
     
-    func run() throws {
+    func run() async throws {
         print("[SwiftWeb] ⚙️ Running migrations...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
@@ -42,14 +42,12 @@ struct MigrateCommand<T: ApplicationConfig>: ParsableCommand {
 
         let db = try configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
 
-        Task {
-            do {
-                try await migrateDatabase(db: db, migrations: T.migrations)
-                print("[SwiftWeb] ✅ Migrations completed successfully!")
-            } catch {
-                print("[SwiftWeb] ❌ Error running migrations: \(error)")
-            } 
-        }
+        do {
+            try await migrateDatabase(db: db, migrations: T.migrations)
+            print("[SwiftWeb] ✅ Migrations completed successfully!")
+        } catch {
+            print("[SwiftWeb] ❌ Error running migrations: \(error)")
+        } 
     }
 }
 
@@ -120,7 +118,7 @@ struct DropCommand<T: ApplicationConfig>: ParsableCommand {
     }
 }
 
-struct ResetCommand<T: ApplicationConfig>: ParsableCommand {
+struct ResetCommand<T: ApplicationConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "reset",
@@ -129,7 +127,7 @@ struct ResetCommand<T: ApplicationConfig>: ParsableCommand {
         )
     }
     
-    func run() throws {
+    func run() async throws {
         print("[SwiftWeb] 🔄 Resetting PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
@@ -145,14 +143,12 @@ struct ResetCommand<T: ApplicationConfig>: ParsableCommand {
         _ = try shell("dropdb \(dbName)")
         _ = try shell("createdb \(dbName)")
 
-        Task {
-            let db = try configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
-            do {
-                try await migrateDatabase(db: db, migrations: T.migrations)
-                print("[SwiftWeb] ✅ Database '\(dbName)' reset successfully!")
-            } catch {
-                print("[SwiftWeb] ❌ Error resetting database: \(error)")
-            }
+        let db = try configureDatabase(eventLoopGroup: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
+        do {
+            try await migrateDatabase(db: db, migrations: T.migrations)
+            print("[SwiftWeb] ✅ Database '\(dbName)' reset successfully!")
+        } catch {
+            print("[SwiftWeb] ❌ Error resetting database: \(error)")
         }
     }
 }
