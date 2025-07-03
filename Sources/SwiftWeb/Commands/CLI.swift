@@ -24,7 +24,8 @@ public struct CLI<T: ApplicationConfig>: ParsableCommand {
             subcommands: [
                 ServerCommand<T>.self,
                 RoutesCommand<T>.self,
-                DatabaseCommand<T>.self
+                DatabaseCommand<T>.self,
+                GenerateCommand<T>.self
             ]
         )
     }

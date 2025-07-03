@@ -13,7 +13,7 @@ struct GenerateCommand<T: ApplicationConfig>: ParsableCommand {
             commandName: "generate",
             abstract: "Generates code.",
             subcommands: [
-                
+                GenerateMigrationCommand<T>.self
             ]
         )
     }
