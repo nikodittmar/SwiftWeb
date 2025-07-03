@@ -3,15 +3,22 @@ import SwiftWeb
 import SwiftDB
 
 struct AppConfig: ApplicationConfig {
+    static let projectName: String = "__PROJECT_NAME__"
+
     static let migrations: [Migration.Type] = []
     
-    static let viewsDirectory: URL = Bundle.module.url(forResource: "Views", withExtension: nil)
+    static let viewsDirectory: URL = {
+        guard let url = Bundle.module.url(forResource: "Views", withExtension: nil) else {
+            fatalError("Views directory not found in bundle. Check your Package.swift resources.")
+        }
+        return url
+    }()
     
     static func configureRoutes() -> Router { return routes() }
     
     static let port: Int = 8080
 
-    static let dotEnvPath: URL = FileManager.default.currentDirectoryPath + "/.env"
+    static let dotEnvPath: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/.env")
 }
 
 CLI<AppConfig>.main()

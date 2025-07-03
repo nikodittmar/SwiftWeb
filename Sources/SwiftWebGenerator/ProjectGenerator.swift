@@ -33,12 +33,17 @@ struct ProjectGenerator {
     }
 
     
+    
     private func copyTemplate(from sourceURL: URL, to destinationURL: URL) throws {
-        let contents = try fileManager.contentsOfDirectory(at: sourceURL, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
+        let contents = try fileManager.contentsOfDirectory(at: sourceURL, includingPropertiesForKeys: [.isDirectoryKey], options: [])
         
         try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true, attributes: nil)
         
         for sourceItemURL in contents {
+            if sourceItemURL.lastPathComponent == ".DS_Store" {
+                continue
+            }
+
             var destinationItemURL = destinationURL.appendingPathComponent(sourceItemURL.lastPathComponent)
             
             if destinationItemURL.lastPathComponent.contains("__PROJECT_NAME__") {
@@ -52,10 +57,18 @@ struct ProjectGenerator {
             if isDirectory {
                 try copyTemplate(from: sourceItemURL, to: destinationItemURL)
             } else {
-                var content = try String(contentsOf: sourceItemURL, encoding: .utf8)
-                content = content.replacingOccurrences(of: "__PROJECT_NAME__", with: projectName)
-                content = content.replacingOccurrences(of: "__SYSTEM_USERNAME__", with: NSUserName())
-                try content.write(to: destinationItemURL, atomically: true, encoding: .utf8)
+                let textFileExtensions = ["swift", "md", "json", "yml", "leaf"]
+                let textFileNames = [".env", ".gitignore"]
+
+                if textFileExtensions.contains(sourceItemURL.pathExtension) || textFileNames.contains(sourceItemURL.lastPathComponent) {
+                    var content = try String(contentsOf: sourceItemURL, encoding: .utf8)
+                    content = content.replacingOccurrences(of: "__PROJECT_NAME__", with: projectName)
+                    content = content.replacingOccurrences(of: "__PROJECT_NAME_LOWERCASE__", with: projectName.lowercased())
+                    content = content.replacingOccurrences(of: "__SYSTEM_USERNAME__", with: NSUserName())
+                    try content.write(to: destinationItemURL, atomically: true, encoding: .utf8)
+                } else {
+                    try fileManager.copyItem(at: sourceItemURL, to: destinationItemURL)
+                }
             }
         }
     }

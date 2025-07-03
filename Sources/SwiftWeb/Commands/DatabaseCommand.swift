@@ -64,7 +64,7 @@ struct CreateCommand<T: ApplicationConfig>: ParsableCommand {
     var dbName: String?
     
     func run() throws {
-        print("🐘 Creating PostgreSQL database...")
+        print("[SwiftWeb] 🐘 Creating PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
             print("[SwiftWeb] ❌ Error loading .env file: \(error)")

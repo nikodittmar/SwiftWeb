@@ -9,6 +9,7 @@ import ArgumentParser
 import Foundation
 
 public protocol ApplicationConfig {
+    static var projectName: String { get }
     static var migrations: [Migration.Type] { get }
     static var port: Int { get }
     static func configureRoutes() -> Router
