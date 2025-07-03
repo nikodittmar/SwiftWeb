@@ -40,17 +40,25 @@ struct MigrateCommand<T: ApplicationConfig>: AsyncParsableCommand {
             return
         }
 
+        print("Loaded .env file successfully.")
+
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+
+        print("event loop group created with \(System.coreCount) threads.")
 
         let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
 
+        print("Database configured successfully.")
     
         do {
+            print("starting migrations")
             try await migrateDatabase(db: db, migrations: T.migrations)
             print("[SwiftWeb] ✅ Migrations completed successfully!")
         } catch {
             print("[SwiftWeb] ❌ Error running migrations: \(error)")
         } 
+
+        print("Done!")
 
         Foundation.exit(0)
     }
