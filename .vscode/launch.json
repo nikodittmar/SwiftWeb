@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:SwiftWeb}",
+            "name": "Debug swiftweb",
+            "program": "${workspaceFolder:SwiftWeb}/.build/debug/swiftweb",
+            "preLaunchTask": "swift: Build Debug swiftweb"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:SwiftWeb}",
+            "name": "Release swiftweb",
+            "program": "${workspaceFolder:SwiftWeb}/.build/release/swiftweb",
+            "preLaunchTask": "swift: Build Release swiftweb"
+        }
+    ]
+}

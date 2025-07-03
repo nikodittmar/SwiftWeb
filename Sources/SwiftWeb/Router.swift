@@ -35,9 +35,7 @@ public final class Router: Sendable {
     }
     
     public func printRoutes() {
-        print("------ Registered Routes ------")
         printSubtree(for: root)
-        print("-------------------------------")
     }
     
     private func printSubtree(for tree: RouteNode?, path: String = "") {

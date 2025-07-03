@@ -13,6 +13,7 @@ public protocol ApplicationConfig {
     static var port: Int { get }
     static func configureRoutes() -> Router
     static var viewsDirectory: URL { get }
+    static var dotEnvPath: URL { get }
 }
 
 public struct CLI<T: ApplicationConfig>: ParsableCommand {

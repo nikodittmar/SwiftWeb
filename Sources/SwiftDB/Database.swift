@@ -9,13 +9,13 @@ import PostgresNIO
 public final class Database: Sendable {
     public let client: PostgresClient
     
-    public init(eventLoopGroup: EventLoopGroup) {
+    public init(config: DatabaseConfig, eventLoopGroup: EventLoopGroup) {
         let config = PostgresClient.Configuration(
-            host: "localhost",
+            host: config.host,
             port: 5432,
-            username: "nikodittmar",
-            password: nil,
-            database: "swiftweb_development",
+            username: config.username,
+            password: config.password,
+            database: config.database,
             tls: .disable
         )
         
@@ -29,3 +29,16 @@ public final class Database: Sendable {
     }
 }
 
+public struct DatabaseConfig {
+    let database: String 
+    let username: String
+    let password: String?
+    let host: String
+
+    public init(database: String, username: String, password: String?, host: String) {
+        self.database = database
+        self.username = username
+        self.password = password
+        self.host = host
+    }
+}

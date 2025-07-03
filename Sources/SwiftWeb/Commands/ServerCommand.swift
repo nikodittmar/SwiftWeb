@@ -19,7 +19,7 @@ struct ServerCommand<T: ApplicationConfig>: ParsableCommand {
     }
     
     func run() throws {
-        print("🚀 Starting Server...")
+        print("[SwiftWeb] 🚀 Starting Server...")
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         
         let router: Router = T.configureRoutes()
@@ -28,7 +28,7 @@ struct ServerCommand<T: ApplicationConfig>: ParsableCommand {
         
         let views = Views(viewsDirectory: viewsDirectory)
         
-        let db = Database(eventLoopGroup: eventLoopGroup)
+        let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
         
         db.run()
         
