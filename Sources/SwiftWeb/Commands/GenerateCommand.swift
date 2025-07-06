@@ -7,7 +7,7 @@
 import ArgumentParser
 import Foundation
 
-struct GenerateCommand<T: ApplicationConfig>: ParsableCommand {
+struct GenerateCommand<T: SwiftWebConfig>: ParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "generate",
@@ -19,7 +19,7 @@ struct GenerateCommand<T: ApplicationConfig>: ParsableCommand {
     }
 }
 
-struct GenerateMigrationCommand<T: ApplicationConfig>: ParsableCommand {
+struct GenerateMigrationCommand<T: SwiftWebConfig>: ParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "migration",

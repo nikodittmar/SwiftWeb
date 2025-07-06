@@ -22,6 +22,7 @@ let package = Package(
     targets: [
         .target(name: "SwiftView", dependencies: []),
         .target(name: "SwiftDB", dependencies: [
+            .product(name: "NIO", package: "swift-nio"),
             .product(name: "PostgresNIO", package: "postgres-nio"),
         ]),
         .target(name: "SwiftWeb", dependencies: [
@@ -46,7 +47,11 @@ let package = Package(
         ),
         .testTarget(
             name: "SwiftDBTests",
-            dependencies: ["SwiftDB"]
+            dependencies: [
+                "SwiftDB",
+                .product(name: "NIO", package: "swift-nio"),
+                
+            ]
         ),
         .testTarget(
             name: "SwiftViewTests",

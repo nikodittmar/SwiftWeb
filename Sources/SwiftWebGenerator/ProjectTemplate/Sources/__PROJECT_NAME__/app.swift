@@ -2,7 +2,14 @@ import Foundation
 import SwiftWeb
 import SwiftDB
 
-struct AppConfig: ApplicationConfig {
+@main
+struct Main {
+    static func main() async {
+        await CLI<AppConfig>.main()
+    }
+}
+
+struct SwiftWebConfig: SwiftWebConfig {
     static let projectName: String = "__PROJECT_NAME__"
 
     static let migrations: [Migration.Type] = []
@@ -17,8 +24,4 @@ struct AppConfig: ApplicationConfig {
     static func configureRoutes() -> Router { return routes() }
     
     static let port: Int = 8080
-
-    static let dotEnvPath: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/.env")
 }
-
-CLI<AppConfig>.main()

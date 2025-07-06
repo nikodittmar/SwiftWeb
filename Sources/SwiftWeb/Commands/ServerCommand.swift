@@ -10,7 +10,7 @@ import SwiftView
 import SwiftDB
 import NIO
 
-struct ServerCommand<T: ApplicationConfig>: ParsableCommand {
+struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "server",
@@ -18,7 +18,7 @@ struct ServerCommand<T: ApplicationConfig>: ParsableCommand {
         )
     }
     
-    func run() throws {
+    func run() async throws {
         print("[SwiftWeb] 🚀 Starting Server...")
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         
@@ -28,9 +28,10 @@ struct ServerCommand<T: ApplicationConfig>: ParsableCommand {
         
         let views = Views(viewsDirectory: viewsDirectory)
         
-        let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
-        
-        db.run()
+        let db = try await Database.connect(
+            config: getDatabaseConfig(),
+            eventLoopGroup: eventLoopGroup
+        )
         
         let application = Application(router: router, db: db, views: views, eventLoopGroup: eventLoopGroup)
         

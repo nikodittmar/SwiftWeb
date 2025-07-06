@@ -6,7 +6,7 @@
 //
 import ArgumentParser
 
-struct RoutesCommand<T: ApplicationConfig>: ParsableCommand {
+struct RoutesCommand<T: SwiftWebConfig>: ParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "routes",

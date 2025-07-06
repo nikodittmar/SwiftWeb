@@ -1,5 +1,5 @@
 {
-  "originHash" : "601acf5c35fecb54ff2e6b408ccd3cee71c21f2e47e9a1953cd76cbcb0d66074",
+  "originHash" : "48a2fb259080fef8516633b7ecb43fb51b7f45a4a7040716a70ba2a38bac0910",
   "pins" : [
     {
       "identity" : "postgres-nio",
@@ -13,7 +13,7 @@
     {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
+      "location" : "https://github.com/apple/swift-argument-parser.git",
       "state" : {
         "revision" : "309a47b2b1d9b5e991f36961c983ecec72275be3",
         "version" : "1.6.1"
@@ -125,6 +125,15 @@
       "state" : {
         "revision" : "61e4ca4b81b9e09e2ec863b00c340eb13497dac6",
         "version" : "1.5.0"
+      }
+    },
+    {
+      "identity" : "swiftweb",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nikodittmar/SwiftWeb.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "b380b36cc0b2ad450d5e9efe6795c427c6791f6a"
       }
     }
   ],

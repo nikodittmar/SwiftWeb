@@ -9,7 +9,7 @@ import ArgumentParser
 import NIO
 import SwiftDB
 
-struct DatabaseCommand<T: ApplicationConfig>: ParsableCommand {
+struct DatabaseCommand<T: SwiftWebConfig>: ParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "db",
@@ -24,7 +24,7 @@ struct DatabaseCommand<T: ApplicationConfig>: ParsableCommand {
     }
 }
 
-struct MigrateCommand<T: ApplicationConfig>: AsyncParsableCommand {
+struct MigrateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "migrate",
@@ -40,25 +40,22 @@ struct MigrateCommand<T: ApplicationConfig>: AsyncParsableCommand {
             return
         }
 
-        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-
-        let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
-
-        db.run()
+        let eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
     
         do {
-            print("starting migrations")
-            try await migrateDatabase(db: db, migrations: T.migrations)
+            let db = try await Database.connect(
+                config: getDatabaseConfig(),
+                eventLoopGroup: eventLoopGroup
+            )
+            try await db.migrate(T.migrations)
             print("[SwiftWeb] ✅ Migrations completed successfully!")
         } catch {
             print("[SwiftWeb] ❌ Error running migrations: \(error)")
         } 
-
-        Foundation.exit(0)
     }
 }
 
-struct CreateCommand<T: ApplicationConfig>: ParsableCommand {
+struct CreateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "create",
@@ -68,9 +65,9 @@ struct CreateCommand<T: ApplicationConfig>: ParsableCommand {
     }
     
     @Argument(help: "The name of the database to create. Defaults to the name in the .env file.")
-    var dbName: String?
+    var name: String?
     
-    func run() throws {
+    func run() async throws {
         print("[SwiftWeb] 🐘 Creating PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
@@ -78,22 +75,23 @@ struct CreateCommand<T: ApplicationConfig>: ParsableCommand {
             return
         }
 
-        guard let dbName = self.dbName ?? ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
+        guard let name = self.name ?? ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
             print("[SwiftWeb] ❌ Error: Database name not provided and not found in .env file.")
             return
         }
 
-        let commandOutput = try shell("createdb \(dbName)")
+        let eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
-        if commandOutput.contains("already exists") {
-            print("[SwiftWeb] ⚠️ Database '\(dbName)' already exists. Skipping creation.")
-        } else {
-            print("[SwiftWeb] ✅ Database '\(dbName)' created successfully!")
+        do {
+            _ = try await Database.create(name: name, maintenanceConfig: getMaintenenceDatabaseConfig(), eventLoopGroup: eventLoopGroup)
+            print("[SwiftWeb] ✅ Database '\(name)' created successfully!")
+        } catch {
+            print("[SwiftWeb] ❌ Failed to create database '\(name)': \(error)")
         }
     }
 }
 
-struct DropCommand<T: ApplicationConfig>: ParsableCommand {
+struct DropCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "drop",
@@ -102,30 +100,31 @@ struct DropCommand<T: ApplicationConfig>: ParsableCommand {
         )
     }
     
-    func run() throws {
+    func run() async throws {
         print("[SwiftWeb] 🚫 Dropping PostgreSQL database...")
 
-        do { try loadDotEnv(from: T.dotEnvPath) } catch {
+                do { try loadDotEnv(from: T.dotEnvPath) } catch {
             print("[SwiftWeb] ❌ Error loading .env file: \(error)")
             return
         }
 
-        guard let dbName = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
-            print("[SwiftWeb] ❌ Error: Database name not found in .env file.")
+        guard let name = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
+            print("[SwiftWeb] ❌ Error: Database name not provided and not found in .env file.")
             return
         }
 
-        let commandOutput = try shell("dropdb \(dbName)")
+        let eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
-        if commandOutput.contains("does not exist") {
-            print("[SwiftWeb] ⚠️ Database '\(dbName)' does not exist. Skipping drop.")
-        } else {
-            print("[SwiftWeb] ✅ Database '\(dbName)' dropped successfully!")
+        do {
+            _ = try await Database.create(name: name, maintenanceConfig: getMaintenenceDatabaseConfig(), eventLoopGroup: eventLoopGroup)
+            print("[SwiftWeb] ✅ Database '\(name)' dropped successfully!")
+        } catch {
+            print("[SwiftWeb] ❌ Failed to drop database '\(name)': \(error)")
         }
     }
 }
 
-struct ResetCommand<T: ApplicationConfig>: AsyncParsableCommand {
+struct ResetCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "reset",
@@ -142,27 +141,103 @@ struct ResetCommand<T: ApplicationConfig>: AsyncParsableCommand {
             return
         }
 
-        guard let dbName = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
-            print("[SwiftWeb] ❌ Error: Database name not found in .env file.")
+        guard let name = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
+            print("[SwiftWeb] ❌ Error: Database name not provided and not found in .env file.")
             return
         }
 
-        _ = try shell("dropdb \(dbName)")
-        _ = try shell("createdb \(dbName)")
-
-        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-
-        let db = try configureDatabase(eventLoopGroup: eventLoopGroup)
-
-        db.run()
+        let eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
         do {
-            try await migrateDatabase(db: db, migrations: T.migrations)
-            print("[SwiftWeb] ✅ Database '\(dbName)' reset successfully!")
+            print("[SwiftWeb] 🚫 Dropping PostgreSQL database...")
+            try await Database.drop(name: name, maintenanceConfig: getMaintenenceDatabaseConfig(), eventLoopGroup: eventLoopGroup)
+            print("[SwiftWeb] ✅ Database '\(name)' dropped successfully!")
+            print("[SwiftWeb] 🐘 Creating PostgreSQL database...")
+            let db = try await Database.create(name: name, maintenanceConfig: getMaintenenceDatabaseConfig(), eventLoopGroup: eventLoopGroup)
+            print("[SwiftWeb] ✅ Database '\(name)' created successfully!")
+            print("[SwiftWeb] ⚙️ Running migrations...")
+            try await db.migrate(T.migrations)
+            print("[SwiftWeb] ✅ Migrations applied successfully!")
         } catch {
-            print("[SwiftWeb] ❌ Error resetting database: \(error)")
+            print("[SwiftWeb] ❌ Failed to reset database '\(name)': \(error)")
         }
-
-        Foundation.exit(0)
     }
 }
+
+func getDatabaseConfig() throws -> DatabaseConfig {
+    guard let dbName = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
+        print("[SwiftWeb] ❌ Error: Database name not found in .env file.")
+        throw GetDatabaseError.missingDatabaseName
+    }
+
+    guard let username = ProcessInfo.processInfo.environment["DATABASE_USER"] else {
+        print("[SwiftWeb] ❌ Error: Database username not found in .env file.")
+        throw GetDatabaseError.missingDatabaseUser
+    }
+
+    guard let host = ProcessInfo.processInfo.environment["DATABASE_HOST"] else {
+        print("[SwiftWeb] ❌ Error: Database host not found in .env file.")
+        throw GetDatabaseError.missingDatabaseHost
+    }
+
+    let port: Int = Int(ProcessInfo.processInfo.environment["DATABASE_PORT"] ?? "5432")!
+
+    var password = ProcessInfo.processInfo.environment["DATABASE_PASSWORD"]
+
+    if password == "" {
+        password = nil
+    }
+
+    let config = DatabaseConfig(
+        host: host,
+        port: port,
+        username: username,
+        password: password,
+        database: dbName
+    )
+
+    return config
+}
+
+func getMaintenenceDatabaseConfig() throws -> DatabaseConfig {
+    guard let dbName = ProcessInfo.processInfo.environment["MAINTENENCE_DATABASE_NAME"] else {
+        print("[SwiftWeb] ❌ Error: Database name not found in .env file.")
+        throw GetDatabaseError.missingDatabaseName
+    }
+
+    guard let username = ProcessInfo.processInfo.environment["DATABASE_USER"] else {
+        print("[SwiftWeb] ❌ Error: Database username not found in .env file.")
+        throw GetDatabaseError.missingDatabaseUser
+    }
+
+    guard let host = ProcessInfo.processInfo.environment["DATABASE_HOST"] else {
+        print("[SwiftWeb] ❌ Error: Database host not found in .env file.")
+        throw GetDatabaseError.missingDatabaseHost
+    }
+
+    let port: Int = Int(ProcessInfo.processInfo.environment["DATABASE_PORT"] ?? "5432")!
+
+    var password = ProcessInfo.processInfo.environment["DATABASE_PASSWORD"]
+
+    if password == "" {
+        password = nil
+    }
+
+    let config = DatabaseConfig(
+        host: host,
+        port: port,
+        username: username,
+        password: password,
+        database: dbName
+    )
+
+    return config
+}
+
+enum GetDatabaseError: Error {
+    case missingDatabaseName
+    case missingDatabaseUser
+    case missingDatabaseHost
+    case missingDatabasePort
+}
+
