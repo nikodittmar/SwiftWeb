@@ -40,12 +40,12 @@ public class MigrationRunner {
             name TEXT NOT NULL
         )
         """
-        try await db.client.query(PostgresQuery(unsafeSQL: query))
+        _ = try await db.query(PostgresQuery(stringLiteral: query))
     }
     
     private func getMigrations() async throws -> [String] {
         let query = PostgresQuery(unsafeSQL: "SELECT name FROM \"migrations\"")
-        let rows = try await db.client.query(query).collect()
+        let rows = try await db.query(query).collect()
         var migrations: [String] = []
         for row in rows {
             let name = try row.decode(String.self)
@@ -58,7 +58,7 @@ public class MigrationRunner {
         var bindings = PostgresBindings(capacity: 1)
         bindings.append(name)
         let query = PostgresQuery(unsafeSQL: "INSERT INTO \"migrations\" (name) VALUES ($1)", binds: bindings)
-        try await db.client.query(query)
+        _ = try await db.query(query)
     }
 }
 

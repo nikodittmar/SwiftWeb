@@ -1,0 +1,37 @@
+# Base configuration for all environments.
+version: '3.8'
+
+services:
+  # The SwiftWeb application service.
+  app:
+    build: .
+    # Use an env_file to load environment variables from .env.
+    # This is the recommended way to manage configuration.
+    env_file:
+      - .env
+    # The port mapping now uses a variable from the .env file.
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # The PostgreSQL database service.
+  db:
+    image: postgres:14-alpine
+    # Load database configuration from the .env file.
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # Note: $$ is used to escape the variable so the shell inside the container expands it.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

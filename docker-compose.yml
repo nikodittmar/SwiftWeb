@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: test_username
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_database
+    ports:
+      - '5432:5432'

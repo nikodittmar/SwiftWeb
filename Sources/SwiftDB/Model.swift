@@ -33,12 +33,12 @@ extension Model {
         }
         
         let query = PostgresQuery(unsafeSQL: SQLString, binds: bindings)
-        try await db.client.query(query)
+        _ = try await db.query(query)
     }
     
     public static func all(on db: Database) async throws -> [Self] {
         let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema)")
-        let rows = try await db.client.query(query).collect()
+        let rows = try await db.query(query).collect()
                 
         let decoder = PostgresDecoder()
         
@@ -55,7 +55,7 @@ extension Model {
         
         let decoder = PostgresDecoder()
         
-        if let row = try await db.client.query(query).collect().first {
+        if let row = try await db.query(query).collect().first {
             return try decoder.decode(Self.self, from: row.makeRandomAccess())
         }
         throw QueryError.notFound
