@@ -25,11 +25,11 @@ public final class Database: Sendable {
     /// Establishes a connection to the database and performs a health check.
     ///
     /// - Parameters:
-    ///   - config: The `DatabaseConfig` containing connection details.
+    ///   - config: The ``DatabaseConfig`` containing connection details.
     ///   - eventLoopGroup: The `EventLoopGroup` to use for the connection.
     ///   - logger: A `Logger` instance for logging database operations.
-    /// - Throws: `DatabaseError.connectionFailed` if the health check fails or the connection cannot be established.
-    /// - Returns: A connected and ready-to-use `Database` instance.
+    /// - Throws: ``DatabaseError.connectionFailed`` if the health check fails or the connection cannot be established.
+    /// - Returns: A connected and ready-to-use ``Database`` instance.
     public static func connect(config: DatabaseConfig, eventLoopGroup: EventLoopGroup, logger: Logger = Logger(label: "SwiftDB")) async throws -> Database {
         logger.debug("Connecting to database.")
         let postgresConfig = PostgresClient.Configuration(
@@ -74,7 +74,7 @@ public final class Database: Sendable {
     /// Executes a SQL query against the database.
     ///
     /// - Parameter query: The `PostgresQuery` to execute. This can be created with safe string interpolation.
-    /// - Throws: `DatabaseError.queryFailed` if the database server returns an error.
+    /// - Throws: ``DatabaseError.queryFailed`` if the database server returns an error.
     /// - Returns: A `PostgresRowSequence` that can be used to iterate over the resulting rows.
     public func query(_ query: PostgresQuery) async throws -> PostgresRowSequence {
         logger.trace("Running database query", metadata: ["query": .string(query.description)])
@@ -114,7 +114,7 @@ public final class Database: Sendable {
     ///   - maintenanceConfig: The configuration for connecting to a maintenance database (e.g., "postgres").
     ///   - eventLoopGroup: The `EventLoopGroup` for the connection.
     ///   - logger: A `Logger` for logging operations.
-    /// - Throws: `DatabaseError` if the name is invalid, the database already exists, or the creation fails.
+    /// - Throws: ``DatabaseError`` if the name is invalid, the database already exists, or the creation fails.
     /// - Returns: A new `Database` instance connected to the newly created database.
     public static func create(name: String, maintenanceConfig: DatabaseConfig, eventLoopGroup: EventLoopGroup, logger: Logger = Logger(label: "SwiftDB")) async throws -> Database {
         logger.debug("Creating database...")
@@ -147,7 +147,7 @@ public final class Database: Sendable {
     ///   - maintenanceConfig: The configuration for connecting to a maintenance database (e.g., "postgres").
     ///   - eventLoopGroup: The `EventLoopGroup` for the connection.
     ///   - logger: A `Logger` for logging operations.
-    /// - Throws: `DatabaseError` if the name is invalid or the operation fails for an unexpected reason.
+    /// - Throws: ``DatabaseError`` if the name is invalid or the operation fails for an unexpected reason.
     public static func drop(name: String, maintenanceConfig: DatabaseConfig, eventLoopGroup: EventLoopGroup, logger: Logger = Logger(label: "SwiftDB")) async throws {
         logger.debug("Dropping database...")
         guard isSafeDatabaseName(name) else {
@@ -171,8 +171,8 @@ public final class Database: Sendable {
     ///   - maintenanceConfig: The configuration for connecting to a maintenance database (e.g., "postgres").
     ///   - eventLoopGroup: The `EventLoopGroup` for the connection.
     ///   - logger: A `Logger` for logging operations.
-    /// - Throws: `DatabaseError` if the name is invalid or the operation fails.
-    /// - Returns: A new `Database` instance connected to the reset database.
+    /// - Throws: ``DatabaseError`` if the name is invalid or the operation fails.
+    /// - Returns: A new ``Database`` instance connected to the reset database.
     public static func reset(name: String, maintenanceConfig: DatabaseConfig, eventLoopGroup: EventLoopGroup, logger: Logger = Logger(label: "SwiftDB")) async throws -> Database {
         logger.debug("Resetting database...")
         guard isSafeDatabaseName(name) else {
@@ -216,6 +216,8 @@ public enum DatabaseError: Error {
     case missingMigration(name: String)
     /// Roll back the database with a step less than one.
     case invalidRollbackStep
+    /// Migration failed to run
+    case migrationFailed(underlying: Error)
 }
 
 /// Configuration details for connecting to a PostgreSQL database.

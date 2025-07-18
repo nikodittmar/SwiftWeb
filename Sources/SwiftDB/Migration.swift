@@ -8,7 +8,7 @@
 import PostgresNIO
 
 /// A protocol that defines a single, reversible database migration.
-public protocol Migration: Sendable {
+public protocol ExplicitMigration: Sendable {
     /// A unique name that **must** be prefixed with a timestamp in `YYYYMMDDHHMMSS` format.
     /// This timestamp determines the chronological order in which migrations are executed.
     ///
@@ -24,6 +24,10 @@ public protocol Migration: Sendable {
     static func down(on connection: PostgresConnection) async throws
 }
 
+public protocol Migration: ExplicitMigration {
+    static func change(builder: SchemaBuilder)
+}
+
 extension Database {
 
     /// Applies all pending migrations in chronological order.
@@ -33,7 +37,7 @@ extension Database {
     ///
     /// - Parameter migrations: An array of `Migration.Type` to consider for execution.
     /// - Throws: A ``DatabaseError`` or a `PostgresError` if a migration fails.
-    public func migrate(_ migrations: [Migration.Type]) async throws {
+    public func migrate(_ migrations: [ExplicitMigration.Type]) async throws {
         logger.debug("Running migrations...")
 
         let migrations = migrations.sorted { $0.name < $1.name}
@@ -45,17 +49,19 @@ extension Database {
             !completedMigrationNames.contains(migration.name)
         }
 
-        try await withTransaction { connection in
-            for migration in pendingMigrations {
-                print("Running migration: \(migration.name)")
-                try await migration.up(on: connection)
+        do {
+            try await withTransaction { connection in
+                for migration in pendingMigrations {
+                    print("Running migration: \(migration.name)")
+                    try await migration.up(on: connection)
 
-                var bindings = PostgresBindings()
-                bindings.append(migration.name)
-                let query = PostgresQuery(unsafeSQL: "INSERT INTO \"migrations\" (name) VALUES ($1)", binds: bindings)
-                _ = try await connection.query(query, logger: logger).get()
+                    var bindings = PostgresBindings()
+                    bindings.append(migration.name)
+                    let query = PostgresQuery(unsafeSQL: "INSERT INTO \"migrations\" (name) VALUES ($1)", binds: bindings)
+                    _ = try await connection.query(query, logger: logger).get()
+                }
             }
-        }
+        } catch { throw DatabaseError.migrationFailed(underlying: error) }
         
         if pendingMigrations.isEmpty {
             print("No new migrations to run.")
@@ -73,7 +79,7 @@ extension Database {
     ///   - step: The number of recent migrations to revert. Defaults to 1.
     /// - Throws: A ``DatabaseError`` if a migration definition is missing, the step count is invalid,
     ///   or a `PostgresError` if a `down` method fails.
-    public func rollback(_ migrations: [Migration.Type], step: Int = 1) async throws {
+    public func rollback(_ migrations: [ExplicitMigration.Type], step: Int = 1) async throws {
         guard step > 0 else {
             throw DatabaseError.invalidRollbackStep
         }
@@ -91,17 +97,20 @@ extension Database {
             return migration
         }
 
-        try await withTransaction { connection in
-            for migration in migrationsToRollback {
-                print("Rolling back migration: \(migration.name)")
-                try await migration.down(on: connection)
+        do {
+            try await withTransaction { connection in
+                for migration in migrationsToRollback {
+                    print("Rolling back migration: \(migration.name)")
+                    try await migration.down(on: connection)
 
-                var bindings = PostgresBindings()
-                bindings.append(migration.name)
-                let query = PostgresQuery(unsafeSQL: "DELETE FROM \"migrations\" WHERE name = ($1)", binds: bindings)
-                _ = try await connection.query(query, logger: logger).get()
+                    var bindings = PostgresBindings()
+                    bindings.append(migration.name)
+                    let query = PostgresQuery(unsafeSQL: "DELETE FROM \"migrations\" WHERE name = ($1)", binds: bindings)
+                    _ = try await connection.query(query, logger: logger).get()
+                }
             }
-        }
+        } catch { throw DatabaseError.migrationFailed(underlying: error) }
+
     }
 
     private func createMigrationsTableIfNeeded() async throws {

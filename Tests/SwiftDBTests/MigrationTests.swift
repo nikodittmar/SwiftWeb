@@ -12,8 +12,8 @@ import PostgresNIO
 
 @Suite struct MigrationTests {
 
-    struct Migration_1: Migration {
-        static let name: String = "1_Create_Books_Table"
+    struct Migration_1: ExplicitMigration {
+        static let name: String = "20250718102456_CreateBooksTable"
 
         static func up(on connection: PostgresConnection) async throws {
             _ = try await connection.query("""
@@ -31,8 +31,8 @@ import PostgresNIO
         }
     }
 
-    struct Migration_2: Migration {
-        static let name: String = "2_Add_Author_To_Books"
+    struct Migration_2: ExplicitMigration {
+        static let name: String = "20250718105812_AddAuthorToBooks"
 
         static func up(on connection: PostgresConnection) async throws {
             _ = try await connection.query("""
@@ -50,7 +50,7 @@ import PostgresNIO
     }
     
     @Test func test_Database_SimpleMigrate_IsValid() async throws {
-        let migrations: [Migration.Type] = [Migration_1.self]
+        let migrations: [ExplicitMigration.Type] = [Migration_1.self]
 
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -66,7 +66,7 @@ import PostgresNIO
     }
 
     @Test func test_Database_MultipleMigrations_IsValid() async throws {
-        let migrations: [Migration.Type] = [Migration_1.self, Migration_2.self]
+        let migrations: [ExplicitMigration.Type] = [Migration_1.self, Migration_2.self]
         
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -82,8 +82,8 @@ import PostgresNIO
     }
 
     @Test func test_Database_MigrationAlreadyRun_IsValid() async throws {
-        let migration_batch_1: [Migration.Type] = [Migration_1.self]
-        let migration_batch_2: [Migration.Type] = [Migration_1.self, Migration_2.self]
+        let migration_batch_1: [ExplicitMigration.Type] = [Migration_1.self]
+        let migration_batch_2: [ExplicitMigration.Type] = [Migration_1.self, Migration_2.self]
 
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -107,7 +107,7 @@ import PostgresNIO
     }
 
     @Test func test_Database_RollbackSimpleMigration_IsValid() async throws  {
-        let migrations: [Migration.Type] = [Migration_1.self]
+        let migrations: [ExplicitMigration.Type] = [Migration_1.self]
 
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -124,7 +124,7 @@ import PostgresNIO
     }
 
     @Test func test_Database_RollbackMultipleRanMigrations_IsValid() async throws  {
-        let migrations: [Migration.Type] = [Migration_1.self, Migration_2.self]
+        let migrations: [ExplicitMigration.Type] = [Migration_1.self, Migration_2.self]
         
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -141,7 +141,7 @@ import PostgresNIO
     }
 
     @Test func test_Database_RollbackMultipleMigrations_IsValid() async throws  {
-        let migrations: [Migration.Type] = [Migration_1.self, Migration_2.self]
+        let migrations: [ExplicitMigration.Type] = [Migration_1.self, Migration_2.self]
         
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -158,8 +158,8 @@ import PostgresNIO
     }
 
     @Test func test_Database_MissingRollbackMigration_Throws() async throws  {
-        let migrations_full: [Migration.Type] = [Migration_1.self, Migration_2.self]
-        let migrations_missing: [Migration.Type] = [Migration_1.self]
+        let migrations_full: [ExplicitMigration.Type] = [Migration_1.self, Migration_2.self]
+        let migrations_missing: [ExplicitMigration.Type] = [Migration_1.self]
 
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -172,7 +172,7 @@ import PostgresNIO
     }
 
     @Test func test_Database_RollbackInvalidStep_Throws() async throws  {
-        let migrations: [Migration.Type] = [Migration_1.self, Migration_2.self]
+        let migrations: [ExplicitMigration.Type] = [Migration_1.self, Migration_2.self]
 
         let dbName = DatabaseTestHelpers.uniqueDatabaseName()
         let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
@@ -181,6 +181,36 @@ import PostgresNIO
         try await db.migrate(migrations)
         await #expect(throws: DatabaseError.self) {
             try await db.rollback(migrations, step: 0)
+        }
+    }
+
+    @Test func test_Database_InvalidMigration_ThrowsError() async throws {
+        struct InvalidMigration: ExplicitMigration {
+            static let name: String = "20250718105812_InvalidMigration"
+
+            static func up(on connection: PostgresConnection) async throws {
+                _ = try await connection.query("""
+                    ALTER TABLE "books"
+                        ADD COLUMN author TEXT
+                """).get()
+            }
+
+            static func down(on connection: PostgresConnection) async throws {
+                    _ = try await connection.query("""
+                    ALTER TABLE "books"
+                        DROP COLUMN author
+                """).get()
+            }
+        }
+
+        let migrations: [ExplicitMigration.Type] = [InvalidMigration.self]
+
+        let dbName = DatabaseTestHelpers.uniqueDatabaseName()
+        let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+        defer { DatabaseTestHelpers.cleanup(dbName: dbName) }
+        
+        await #expect(throws: DatabaseError.self) {
+            try await db.migrate(migrations)
         }
     }
 
