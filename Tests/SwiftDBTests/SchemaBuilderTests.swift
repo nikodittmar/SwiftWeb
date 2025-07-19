@@ -8,7 +8,7 @@
 import Testing
 @testable import SwiftDB
 
-@Suite class SchemaBuilderTests {
+@Suite(.serialized) struct SchemaBuilderTests {
     @Test func test_SchemaBuilder_CreateTable_IsValid() throws {
         struct CreateBooksTable: Migration {
             static let name: String = "20250718094030_CreateBooksTable"
@@ -131,9 +131,8 @@ import Testing
 
         let migrations: [ExplicitMigration.Type] = [CreatePostsTable.self, AddLikesToPosts.self]
 
-        let dbName = DatabaseTestHelpers.uniqueDatabaseName()
-        let db = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.healthyDatabaseConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
-        defer { DatabaseTestHelpers.cleanup(dbName: dbName) }
+        let db = try await DatabaseTestHelpers.testDatabase()
+        defer { db.shutdown() }
 
         try await db.migrate(migrations)
 

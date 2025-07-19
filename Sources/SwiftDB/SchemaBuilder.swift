@@ -52,8 +52,8 @@ public struct TableDefinition {
 }
 
 public struct ColumnDefinition {
-    let name: String
-    var type: String
+    public let name: String
+    public var type: String
 }
 
 public final class SchemaBuilder {

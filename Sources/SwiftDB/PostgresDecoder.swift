@@ -32,30 +32,34 @@ private class PostgresDecoderImpl: Decoder {
         
         func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
             guard let type = T.self as? any PostgresDecodable.Type else {
-                throw PostgresDecodingError.typeNotSupported(T.self)
+                throw PostgresDecoderError.typeNotSupported(T.self)
             }
             guard let result = try self._decode(type, forKey: key) as? T else {
-                throw PostgresDecodingError.typeNotSupported(T.self)
+                throw PostgresDecoderError.typeNotSupported(T.self)
             }
             return result
         }
         
         func _decode<T: PostgresDecodable>(_ type: T.Type, forKey key: Key) throws -> T {
             guard self.contains(key) else {
-                throw DecodingError.keyNotFound(key, DecodingError.Context(codingPath: self.codingPath, debugDescription: "Missing key \(key)"))
+                throw PostgresDecoderError.keyNotFound(key: key.stringValue)
             }
-            return try row[key.stringValue].decode(T.self)
+            do {
+                return try row[key.stringValue].decode(T.self)
+            } catch {
+                throw PostgresDecoderError.decodingError(underlying: error)
+            }
         }
         
-        func decode(_ type: UInt64.Type, forKey key: Key) throws -> UInt64 { throw PostgresDecodingError.typeNotSupported(UInt64.self) }
-        func decode(_ type: UInt32.Type, forKey key: Key) throws -> UInt32 { throw PostgresDecodingError.typeNotSupported(UInt32.self) }
-        func decode(_ type: UInt16.Type, forKey key: Key) throws -> UInt16 { throw PostgresDecodingError.typeNotSupported(UInt16.self) }
+        func decode(_ type: UInt64.Type, forKey key: Key) throws -> UInt64 { throw PostgresDecoderError.typeNotSupported(UInt64.self) }
+        func decode(_ type: UInt32.Type, forKey key: Key) throws -> UInt32 { throw PostgresDecoderError.typeNotSupported(UInt32.self) }
+        func decode(_ type: UInt16.Type, forKey key: Key) throws -> UInt16 { throw PostgresDecoderError.typeNotSupported(UInt16.self) }
         func decode(_ type: UInt8.Type, forKey key: Key) throws -> UInt8 { try self._decode(type, forKey: key) }
-        func decode(_ type: UInt.Type, forKey key: Key) throws -> UInt { throw PostgresDecodingError.typeNotSupported(UInt.self) }
+        func decode(_ type: UInt.Type, forKey key: Key) throws -> UInt { throw PostgresDecoderError.typeNotSupported(UInt.self) }
         func decode(_ type: Int64.Type, forKey key: Key) throws -> Int64 { try self._decode(type, forKey: key) }
         func decode(_ type: Int32.Type, forKey key: Key) throws -> Int32 { try self._decode(type, forKey: key) }
         func decode(_ type: Int16.Type, forKey key: Key) throws -> Int16 { try self._decode(type, forKey: key) }
-        func decode(_ type: Int8.Type, forKey key: Key) throws -> Int8 { throw PostgresDecodingError.typeNotSupported(Int8.self) }
+        func decode(_ type: Int8.Type, forKey key: Key) throws -> Int8 { throw PostgresDecoderError.typeNotSupported(Int8.self) }
         func decode(_ type: Int.Type, forKey key: Key) throws -> Int { try self._decode(type, forKey: key) }
         func decode(_ type: Float.Type, forKey key: Key) throws -> Float { try self._decode(type, forKey: key) }
         func decode(_ type: Double.Type, forKey key: Key) throws -> Double { try self._decode(type, forKey: key) }
@@ -72,39 +76,41 @@ private class PostgresDecoderImpl: Decoder {
         
         func decodeNil(forKey key: Key) throws -> Bool {
             guard self.contains(key) else {
-                throw DecodingError.keyNotFound(key, DecodingError.Context(codingPath: self.codingPath, debugDescription: "Missing key \(key)"))
+                throw PostgresDecoderError.keyNotFound(key: key.stringValue)
             }
             return row[key.stringValue].bytes == nil
         }
         
         func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-            throw PostgresDecodingError.notSupported
+            throw PostgresDecoderError.notSupported
         }
         
         func nestedUnkeyedContainer(forKey key: Key) throws -> any UnkeyedDecodingContainer {
-            throw PostgresDecodingError.notSupported
+            throw PostgresDecoderError.notSupported
         }
         
         func superDecoder() throws -> any Decoder {
-            throw PostgresDecodingError.notSupported
+            throw PostgresDecoderError.notSupported
         }
         
         func superDecoder(forKey key: Key) throws -> any Decoder {
-            throw PostgresDecodingError.notSupported
+            throw PostgresDecoderError.notSupported
         }
     }
     
     func unkeyedContainer() throws -> any UnkeyedDecodingContainer {
-        throw PostgresDecodingError.notSupported
+        throw PostgresDecoderError.notSupported
     }
     
     func singleValueContainer() throws -> any SingleValueDecodingContainer {
-        throw PostgresDecodingError.notSupported
+        throw PostgresDecoderError.notSupported
     }
 }
 
-enum PostgresDecodingError: Error {
+enum PostgresDecoderError: Error {
+    case keyNotFound(key: String)
     case typeNotSupported(Any.Type)
     case notSupported
+    case decodingError(underlying: Error)
 }
 

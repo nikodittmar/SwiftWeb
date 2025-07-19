@@ -23,6 +23,7 @@ func makeTestDataRow(_ buffers: ByteBuffer?...) -> DataRow {
     return DataRow(columnCount: Int16(buffers.count), bytes: bytes)
 }
 
+
 @Suite struct PostgresDecoderTests {
     
     let decoder = PostgresDecoder()
@@ -50,8 +51,33 @@ func makeTestDataRow(_ buffers: ByteBuffer?...) -> DataRow {
             )
         ]
     )
+
+     let rowWithNil = PostgresRow(
+        data: makeTestDataRow(ByteBuffer(integer: 5), nil),
+        lookupTable: ["id": 0, "name": 1],
+        columns: [
+            RowDescription.Column(
+                name: "id",
+                tableOID: 1,
+                columnAttributeNumber: 1,
+                dataType: .int8,
+                dataTypeSize: 0,
+                dataTypeModifier: 0,
+                format: .binary
+            ),
+            RowDescription.Column(
+                name: "name",
+                tableOID: 1,
+                columnAttributeNumber: 1,
+                dataType: .text,
+                dataTypeSize: 0,
+                dataTypeModifier: 0,
+                format: .binary
+            )
+        ]
+    )
     
-    @Test func testDecode() {
+    @Test func test_PostgresDecoder_DecodeSimpleModel_IsValid() throws {
         struct Person: Model {
             static let schema: String = "People"
             
@@ -59,25 +85,23 @@ func makeTestDataRow(_ buffers: ByteBuffer?...) -> DataRow {
             var name: String
         }
         
-        let person = try? decoder.decode(Person.self, from: row.makeRandomAccess())
-        #expect(person != nil)
-        #expect(person?.id == 5)
-        #expect(person?.name == "John Appleseed")
+        let person = try decoder.decode(Person.self, from: row.makeRandomAccess())
+        #expect(person.id == 5)
+        #expect(person.name == "John Appleseed")
     }
     
-    @Test func testMissingField() {
+    @Test func test_PostgresDecoder_DecodeExtraField_IsValid() throws {
         struct Person: Model {
             static let schema: String = "People"
             
             var id: Int?
         }
         
-        let person = try? decoder.decode(Person.self, from: row.makeRandomAccess())
-        #expect(person != nil)
-        #expect(person?.id == 5)
+        let person = try decoder.decode(Person.self, from: row.makeRandomAccess())
+        #expect(person.id == 5)
     }
     
-    @Test func testExtraField() {
+    @Test func test_PostgresDecoder_DecodeMissingField_ThrowsError() {
         struct Person: Model {
             static let schema: String = "People"
             
@@ -86,22 +110,25 @@ func makeTestDataRow(_ buffers: ByteBuffer?...) -> DataRow {
             var age: Int
         }
 
-        let person = try? decoder.decode(Person.self, from: row.makeRandomAccess())
-        #expect(person == nil)
+        #expect(throws: PostgresDecoderError.self) { 
+            _ = try decoder.decode(Person.self, from: row.makeRandomAccess()) 
+        }
     }
     
-    @Test func testIncorrectType() {
+    @Test func test_PostgresDecoder_TypeMismatch_ThrowsError() {
         struct Person: Model {
             static let schema: String = "People"
             
             var id: Int?
             var name: Int
         }
-        let person = try? decoder.decode(Person.self, from: row.makeRandomAccess())
-        #expect(person == nil)
+
+        #expect(throws: PostgresDecoderError.self) { 
+            _ = try decoder.decode(Person.self, from: row.makeRandomAccess()) 
+        }
     }
     
-    @Test func testDecodeNil() {
+    @Test func test_PostgresDecoder_NilRequiredValue_ThrowsError() {
         struct Person: Model {
             static let schema: String = "People"
             
@@ -109,45 +136,23 @@ func makeTestDataRow(_ buffers: ByteBuffer?...) -> DataRow {
             var name: String
         }
         
+        #expect(throws: PostgresDecoderError.self) {
+            _ = try decoder.decode(Person.self, from: rowWithNil.makeRandomAccess())
+        }
+    }
+
+    @Test func test_PostgresDecoder_NilOptionalValue_IsValid() throws {
         struct PersonOptional: Model {
             static let schema: String = "People"
             
             var id: Int?
             var name: String?
         }
-        
-        let rowWithNil = PostgresRow(
-            data: makeTestDataRow(ByteBuffer(integer: 5), nil),
-            lookupTable: ["id": 0, "name": 1],
-            columns: [
-                RowDescription.Column(
-                    name: "id",
-                    tableOID: 1,
-                    columnAttributeNumber: 1,
-                    dataType: .int8,
-                    dataTypeSize: 0,
-                    dataTypeModifier: 0,
-                    format: .binary
-                ),
-                RowDescription.Column(
-                    name: "name",
-                    tableOID: 1,
-                    columnAttributeNumber: 1,
-                    dataType: .text,
-                    dataTypeSize: 0,
-                    dataTypeModifier: 0,
-                    format: .binary
-                )
-            ]
-        )
-        
-        let person = try? decoder.decode(Person.self, from: rowWithNil.makeRandomAccess())
-        let personOptional = try? decoder.decode(PersonOptional.self, from: rowWithNil.makeRandomAccess())
 
-        #expect(person == nil)
-        #expect(personOptional != nil)
-        #expect(personOptional?.name == nil)
-        #expect(personOptional?.id == 5)
+        let person = try decoder.decode(PersonOptional.self, from: rowWithNil.makeRandomAccess())
+
+        #expect(person.name == nil)
+        #expect(person.id == 5)
     }
 }
 
