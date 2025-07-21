@@ -5,6 +5,7 @@
 //  Created by Niko Dittmar on 6/21/25.
 //
 import PostgresNIO
+import Foundation
 
 public class PostgresDecoder {
     public func decode<T : Decodable>(_ type: T.Type, from row: PostgresRandomAccessRow) throws -> T {
@@ -31,13 +32,41 @@ private class PostgresDecoderImpl: Decoder {
         let row: PostgresRandomAccessRow
         
         func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
-            guard let type = T.self as? any PostgresDecodable.Type else {
-                throw PostgresDecoderError.typeNotSupported(T.self)
+            guard self.contains(key) else {
+                throw PostgresDecoderError.keyNotFound(key: key.stringValue)
             }
-            guard let result = try self._decode(type, forKey: key) as? T else {
-                throw PostgresDecoderError.typeNotSupported(T.self)
+
+            let cell = self.row[key.stringValue]
+            
+            if let postgresType = T.self as? any PostgresDecodable.Type {
+                let decodedValue = try cell.decode(postgresType)
+                
+                guard let finalValue = decodedValue as? T else {
+                    throw DecodingError.typeMismatch(T.self, .init(
+                        codingPath: self.codingPath,
+                        debugDescription: "Successfully decoded as PostgresDecodable, but failed to cast back to the expected type \(T.self)."
+                    ))
+                }
+                return finalValue
+                
+            } else {
+                // This is the path for complex Codable objects from JSON/JSONB.
+        
+        // 1. Decode the cell as a String first. This converts the
+        //    database's binary format to a valid JSON string.
+        let jsonString = try cell.decode(String.self)
+
+        // 2. Convert that string to Data.
+        guard let data = jsonString.data(using: .utf8) else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: self.codingPath,
+                debugDescription: "Failed to convert JSON string to Data."
+            ))
+        }
+        
+        // 3. Now, decode the valid JSON data.
+        return try JSONDecoder().decode(T.self, from: data)
             }
-            return result
         }
         
         func _decode<T: PostgresDecodable>(_ type: T.Type, forKey key: Key) throws -> T {

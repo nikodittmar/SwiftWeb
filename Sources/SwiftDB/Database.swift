@@ -64,7 +64,7 @@ public final class Database: Sendable {
                 return try await group.next()!
             }
         } catch {
-            logger.critical("Database health check failed!")
+            logger.debug("Database health check failed!")
             throw DatabaseError.connectionFailed(underlying: error)
         }
 

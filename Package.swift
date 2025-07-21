@@ -37,9 +37,6 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
-            resources: [
-                .copy("ProjectTemplate")
-            ]
         ),
         .testTarget(
             name: "SwiftWebTests",
@@ -50,7 +47,6 @@ let package = Package(
             dependencies: [
                 "SwiftDB",
                 .product(name: "NIO", package: "swift-nio"),
-                
             ]
         ),
         .testTarget(

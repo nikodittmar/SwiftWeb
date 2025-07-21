@@ -5,7 +5,7 @@
 //  Created by Niko Dittmar on 6/21/25.
 //
 import ArgumentParser
-
+/*
 struct SwiftWebGenerator: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swiftweb",
@@ -33,3 +33,4 @@ extension SwiftWebGenerator {
 }
 
 SwiftWebGenerator.main()
+*/

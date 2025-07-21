@@ -113,9 +113,6 @@ import Testing
         let input = "<%%><p>Hello</p><%=%>"
         let res = try Tokenizer.tokenize(input)
         
-        print(res)
-
-        
         #expect(res.count == 3)
         #expect(res[0] == .code(""))
         #expect(res[1] == .text("<p>Hello</p>"))

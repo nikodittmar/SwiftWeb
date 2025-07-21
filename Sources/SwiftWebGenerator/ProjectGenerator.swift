@@ -6,7 +6,7 @@
 //
 
 import Foundation
-
+/*I
 struct ProjectGenerator {
     let projectName: String
     let fileManager = FileManager.default
@@ -77,3 +77,4 @@ struct ProjectGenerator {
 public enum ProjectGeneratorError: Error {
     case failedToGetDirectory
 }
+*/

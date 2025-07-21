@@ -47,7 +47,7 @@ struct MigrateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
                 config: getDatabaseConfig(),
                 eventLoopGroup: eventLoopGroup
             )
-            //try await db.migrate(T.migrations)
+            try await db.migrate(T.migrations)
             print("[SwiftWeb] ✅ Migrations completed successfully!")
         } catch {
             print("[SwiftWeb] ❌ Error running migrations: \(error)")
@@ -155,7 +155,7 @@ struct ResetCommand<T: SwiftWebConfig>: AsyncParsableCommand {
             let db = try await Database.create(name: name, maintenanceConfig: getDatabaseConfig(maintenance: true), eventLoopGroup: eventLoopGroup)
             print("[SwiftWeb] ✅ Database '\(name)' created successfully!")
             print("[SwiftWeb] ⚙️ Running migrations...")
-            //try await db.migrate(T.migrations)
+            try await db.migrate(T.migrations)
             print("[SwiftWeb] ✅ Migrations applied successfully!")
         } catch {
             print("[SwiftWeb] ❌ Failed to reset database '\(name)': \(error)")
@@ -193,7 +193,7 @@ func getDatabaseConfig(maintenance: Bool = false) throws -> DatabaseConfig {
         port: port,
         username: username,
         password: password,
-        database: dbName
+        database: maintenance ? "postgres" : dbName
     )
 
     return config
@@ -201,10 +201,11 @@ func getDatabaseConfig(maintenance: Bool = false) throws -> DatabaseConfig {
 
 func loadDotEnv(from url: URL) throws {
 
-    if ProcessInfo.processInfo.environment["ENVIRONMENT"] ?? "development" == "development" {
-        print("[SwiftWeb] 📁 Loading .env file for development")
-        throw GetDatabaseError.missingDatabaseName
+    guard ProcessInfo.processInfo.environment["ENVIRONMENT"] ?? "development" == "development" else {
+        return
     }
+
+    print("[SwiftWeb] 📁 Loading .env file for development")
 
     guard let fileContents = try? String(contentsOf: url, encoding: .utf8) else {
         throw DotEnvError.notFound

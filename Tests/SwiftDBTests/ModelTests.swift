@@ -8,7 +8,7 @@
 import Testing
 @testable import SwiftDB
 
-@Suite(.serialized) struct ModelTests {
+@Suite class ModelTests {
 
     struct CreateBooks: Migration {
         static let name: String = "20250718181324_CreateBooks"
@@ -29,11 +29,21 @@ import Testing
         var author: String
     }
 
+    let dbName: String
     let db: Database
 
     init() async throws {
-        self.db = try await DatabaseTestHelpers.testDatabase()
-        try await self.db.migrate([CreateBooks.self])
+        self.dbName = DatabaseTestHelpers.uniqueDatabaseName()
+        self.db = try await Database.create(name: self.dbName, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+        try await self.db.migrate([CreateBooks.self]) 
+    }
+
+    deinit {
+        self.db.shutdown()
+        let name = self.dbName
+        Task {
+            try await Database.drop(name: name, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+        }
     }
 
     @Test func test_Model_Save_IsValid() async throws {
@@ -107,4 +117,48 @@ import Testing
         #expect(updatedBook.title == "Swift on iOS!")
         #expect(updatedBook.author == "John Appleseed")
     }
+    /*
+    @Test func test_Model_SaveComplexModel_IsValid() async throws {
+        struct CreatePeopleTable: Migration {
+            static let name: String = "20250718192031_CreatePeopleTable"
+
+            static func change(builder: SchemaBuilder) {
+                builder.createTable("people") { t in
+                    t.column("name", type: "text")
+                    t.column("age", type: "integer")
+                    t.column("employment", type: "jsonb")
+                    t.column("hobbies", type: "text[]")
+                }
+            }
+        }
+
+        struct Person: Model {
+            static let schema: String = "people"
+
+            var id: Int?
+            var name: String
+            var age: Int
+            var employment: Employment
+            var hobbies: [String]
+        }
+
+        struct Employment: Codable, Equatable {
+            var company: String
+            var title: String
+        }
+
+        try await self.db.migrate([CreatePeopleTable.self])
+
+        let employment = Employment(company: "Apple", title: "Software Engineer")
+        let person = Person(name: "John", age: 24, employment: employment, hobbies: ["Coding", "Golf", "Travel"])
+        let savedPerson = try await person.save(on: db)
+
+        #expect(savedPerson.id == 1)
+        #expect(savedPerson.name == "John")
+        #expect(savedPerson.employment == employment)
+        #expect(savedPerson.hobbies[0] == "Coding")
+        #expect(savedPerson.hobbies[1] == "Golf")
+        #expect(savedPerson.hobbies[2] == "Travel")
+    }
+    */
 }

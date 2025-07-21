@@ -9,11 +9,17 @@ import PostgresNIO
 import Foundation
 
 internal class PostgresEncoder {
-    internal func encode<T : Encodable>(_ value: T) throws -> [String: PostgresEncodable] {
+    internal func encode<T : Encodable>(_ value: T) throws -> [PostgresColumn] {
         let encoder = _PostgresEncoder()
         try value.encode(to: encoder)
         return encoder.row
     }
+}
+
+internal struct PostgresColumn {
+    let name: String
+    let type: PostgresDataType
+    let value: PostgresEncodable?
 }
 
 private class _PostgresEncoder: Encoder {
@@ -21,7 +27,7 @@ private class _PostgresEncoder: Encoder {
 
     var userInfo: [CodingUserInfoKey : Any] = [:]
 
-    var row: [String: PostgresEncodable] = [:]
+    var row: [PostgresColumn] = []
 
     func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
         return KeyedEncodingContainer(PostgresKeyedEncodingContainer<Key>(encoder: self))
@@ -33,38 +39,46 @@ private class _PostgresEncoder: Encoder {
 
         mutating func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
             switch value {
-                case let pgEncodable as PostgresEncodable:
-                    self.encoder.row[key.stringValue] = pgEncodable
-                case let array as [any Encodable]:
-                    let jsonStrings = try array.map { value in
-                        let jsonData = try JSONEncoder().encode(value)
-                        guard let jsonString =  String(data: jsonData, encoding: .utf8) else {
-                            throw PostgresEncoderError.typeNotSupported(T.self)
+                case let postgresEncodable as PostgresEncodable:
+                    self.encoder.row.append(PostgresColumn(
+                        name: key.stringValue,
+                        type: postgresEncodable.psqlType,
+                        value: postgresEncodable
+                    ))
+                case let encodableArray as [any Encodable]:
+                    let jsonStrings = try encodableArray.map { item -> String in
+                        guard let string = String(data: try JSONEncoder().encode(item), encoding: .utf8) else {
+                            throw PostgresEncoderError.notSupported
                         }
-                        return jsonString
+                        return string
                     }
-                    self.encoder.row[key.stringValue] = jsonStrings
+                    self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .textArray, value: jsonStrings))
                 default:
-                    self.encoder.row[key.stringValue] = try JSONEncoder().encode(value)
+                    guard let json = String(data: try JSONEncoder().encode(value), encoding: .utf8) else {
+                        throw PostgresEncoderError.notSupported
+                    }
+                    self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .jsonb, value: json))
             }
         }
 
         mutating func encode(_ value: UInt64, forKey key: Key) throws { throw PostgresEncoderError.typeNotSupported(UInt64.self) }
         mutating func encode(_ value: UInt32, forKey key: Key) throws { throw PostgresEncoderError.typeNotSupported(UInt32.self) }
         mutating func encode(_ value: UInt16, forKey key: Key) throws { throw PostgresEncoderError.typeNotSupported(UInt16.self) }
-        mutating func encode(_ value: UInt8, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
+        mutating func encode(_ value: UInt8, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .char, value: value)) }
         mutating func encode(_ value: UInt, forKey key: Key) throws { throw PostgresEncoderError.typeNotSupported(UInt.self) }
-        mutating func encode(_ value: Int64, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
-        mutating func encode(_ value: Int32, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
-        mutating func encode(_ value: Int16, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
+        mutating func encode(_ value: Int64, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .int8, value: value)) }
+        mutating func encode(_ value: Int32, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .int4, value: value)) }
+        mutating func encode(_ value: Int16, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .int2, value: value)) }
         mutating func encode(_ value: Int8, forKey key: Key) throws { throw PostgresEncoderError.typeNotSupported(Int8.self) }
-        mutating func encode(_ value: Int, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
-        mutating func encode(_ value: Float, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
-        mutating func encode(_ value: Double, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
-        mutating func encode(_ value: String, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
-        mutating func encode(_ value: Bool, forKey key: Key) throws { self.encoder.row[key.stringValue] = value }
+        mutating func encode(_ value: Int, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .int8, value: value)) }
+        mutating func encode(_ value: Float, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .float4, value: value)) }
+        mutating func encode(_ value: Double, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .float8, value: value)) }
+        mutating func encode(_ value: String, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .text, value: value)) }
+        mutating func encode(_ value: Bool, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .bool, value: value)) }
 
-        mutating func encodeNil(forKey key: Key) throws { self.encoder.row[key.stringValue] = nil }
+        mutating func encodeNil(forKey key: Key) throws { 
+            self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .unknown, value: nil))
+        }
 
         mutating func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
             fatalError("Nested keyed encoding is not supported.")
@@ -84,13 +98,13 @@ private class _PostgresEncoder: Encoder {
     }
 
     func unkeyedContainer() -> any UnkeyedEncodingContainer {
-        fatalError(" encoding is not supported.")
+        fatalError("PostgresEncoder does not support encoding to a top-level array.")
     }
 
 
 
     func singleValueContainer() -> any SingleValueEncodingContainer {
-        fatalError("Unimplemented!")
+        fatalError("PostgresEncoder does not support encoding to a top-level single value.")
     }
 }
 

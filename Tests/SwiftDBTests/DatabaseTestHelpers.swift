@@ -29,6 +29,15 @@ enum DatabaseTestHelpers {
         tls: .disable
     )
 
+    static let maintenanceConfig = DatabaseConfig(
+        host: testHost,
+        port: testPort,
+        username: testUsername,
+        password: testPassword,
+        database: "postgres",
+        tls: .disable
+    )
+
     static let unhealthyConfig = DatabaseConfig(
         host: "192.0.2.1", // Unreachable IP address
         port: 9999, 
@@ -46,30 +55,5 @@ enum DatabaseTestHelpers {
         Task {
             try? await Database.drop(name: dbName, maintenanceConfig: healthyDatabaseConfig, eventLoopGroup: eventLoopGroup)
         }
-    }
-
-    /// IMPORTANT: tests that use this helper method MUST RUN IN SERIAL!!
-    static func testDatabase() async throws -> Database {
-        let db = try await Database.connect(
-            config: healthyDatabaseConfig,
-            eventLoopGroup: eventLoopGroup
-        )
-
-        let rows = try await db.query("""
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-        """).collect()
-        
-        let tableNames = try rows.map { try $0.decode(String.self) }
-
-        if !tableNames.isEmpty {
-            let tablesSql = tableNames.map { "\"\($0)\"" }.joined(separator: ", ")
-            let dropQuery = "DROP TABLE \(tablesSql) CASCADE;"
-
-            _ = try await db.query(PostgresQuery(stringLiteral: dropQuery))
-        }
-        
-        return db
     }
 }

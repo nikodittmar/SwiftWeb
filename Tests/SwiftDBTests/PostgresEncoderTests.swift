@@ -24,8 +24,8 @@ import Foundation
 
         let result = try PostgresEncoder().encode(post)
 
-        let resultTitle = try #require(result["title"] as? String)
-        let resultAuthor = try #require(result["author"] as? String)
+        let resultTitle = try #require(result.first(where: { $0.name == "title" })?.value as? String)
+        let resultAuthor = try #require(result.first(where: { $0.name == "author" })?.value as? String)
 
         #expect(resultTitle == "Swift on Server")
         #expect(resultAuthor == "John Appleseed")
@@ -44,8 +44,8 @@ import Foundation
 
         let result = try PostgresEncoder().encode(post)
 
-        let resultName = try #require(result["name"] as? String)
-        let resultHobbies = try #require(result["hobbies"] as? [String])
+        let resultName = try #require(result.first(where: { $0.name == "name" })?.value as? String)
+        let resultHobbies = try #require(result.first(where: { $0.name == "hobbies" })?.value as? [String])
 
         #expect(resultName == "John Appleseed")
         #expect(resultHobbies == ["Coding", "Travelling", "Golf"])
@@ -71,10 +71,9 @@ import Foundation
 
         let result = try PostgresEncoder().encode(post)
 
-        print(result)
-
-        let resultTitle = try #require(result["title"] as? String)
-        let resultAuthor: Person = try JSONDecoder().decode(Person.self, from: try #require(result["author"] as? Data))
+        let resultTitle = try #require(result.first(where: { $0.name == "title" })?.value as? String)
+        let authorJSONString = try #require(result.first(where: { $0.name == "author" })?.value as? String)
+        let resultAuthor = try JSONDecoder().decode(Person.self, from: Data(authorJSONString.utf8))
 
         #expect(resultTitle == "Swift on Server Handbook")
         #expect(resultAuthor == author)
@@ -99,10 +98,8 @@ import Foundation
 
         let result = try PostgresEncoder().encode(post)
 
-        print(result)
-
-        let resultTitle = try #require(result["title"] as? String)
-        let resultTags = try #require(result["tags"] as? [String])
+        let resultTitle = try #require(result.first(where: { $0.name == "title" })?.value as? String)
+        let resultTags = try #require(result.first(where: { $0.name == "tags" })?.value as? [String])
 
         let resultTag1: Tag = try JSONDecoder().decode(Tag.self, from: #require(resultTags[0].data(using: .utf8)))
         let resultTag2: Tag = try JSONDecoder().decode(Tag.self, from: #require(resultTags[1].data(using: .utf8)))

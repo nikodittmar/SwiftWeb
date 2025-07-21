@@ -131,8 +131,15 @@ import Testing
 
         let migrations: [ExplicitMigration.Type] = [CreatePostsTable.self, AddLikesToPosts.self]
 
-        let db = try await DatabaseTestHelpers.testDatabase()
-        defer { db.shutdown() }
+        let dbName: String = DatabaseTestHelpers.uniqueDatabaseName()
+        let db: Database = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+
+        defer {
+            db.shutdown()
+            Task {
+                try await Database.drop(name: dbName, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+            }
+        }
 
         try await db.migrate(migrations)
 

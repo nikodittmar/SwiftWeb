@@ -19,9 +19,13 @@ public struct Response: Sendable {
         self.body = body
     }
     
-    public static func view<T: Encodable>(_ name: String, with context: T, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response {
-        let html = try request.app.views.render(name, with: context)
-        return .html(html, status: status)
+    public static func view<T: Encodable>(_ name: String, with context: T, on request: Request, status: HTTPResponseStatus = .ok) -> Response {
+        
+        do {
+            return .html(try request.app.views.render(name, with: context), status: status)
+        } catch {
+            return .html("<div>\(error)</div>")
+        }
     }
     
     public static func json(_ json: String, status: HTTPResponseStatus = .ok) -> Response {

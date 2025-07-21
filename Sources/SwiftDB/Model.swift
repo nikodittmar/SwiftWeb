@@ -14,19 +14,23 @@ public protocol Model: Codable, Sendable {
 
 extension Model {
     public func save(on db: Database) async throws -> Self {
-        let properties = try PostgresEncoder().encode(self).filter { $0.key != "id" }
-
-        let sortedKeys = properties.keys.sorted()
+        let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
         
-        let columnSQL = sortedKeys.map({ "\"\($0)\"" }).joined(separator: ", ")
-        let placeholderSQL = (1...sortedKeys.count).map({ "$\($0)" }).joined(separator: ", ")
+        let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
+        let placeholderSQL = properties.enumerated().map({ (index, column) in
+            if column.type == .jsonb {
+                return "$\(index + 1)::jsonb"
+            } else {
+                return "$\(index + 1)"
+            }
+        }).joined(separator: ", ")
         
         let SQLString = "INSERT INTO \"\(Self.schema)\" (\(columnSQL)) VALUES (\(placeholderSQL)) RETURNING *"
         
         var bindings = PostgresBindings(capacity: properties.count)
         
-        for key in sortedKeys {
-            guard let value = properties[key] else { throw ModelError.saveFailed }
+        for property in properties {
+            guard let value = property.value else { throw ModelError.saveFailed }
             try bindings.append(value)
         }
         
@@ -49,19 +53,23 @@ extension Model {
     public func update(on db: Database) async throws {
         guard let id = self.id else { throw ModelError.missingId }
 
-        let properties = try PostgresEncoder().encode(self).filter { $0.key != "id" }
-
-        let sortedKeys = properties.keys.sorted()
+        let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
         
-        let columnSQL = sortedKeys.map({ "\"\($0)\"" }).joined(separator: ", ")
-        let placeholderSQL = (1...sortedKeys.count).map({ "$\($0)" }).joined(separator: ", ")
+        let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
+        let placeholderSQL = properties.enumerated().map({ (index, column) in
+            if column.type == .jsonb {
+                return "$\(index + 1)::jsonb"
+            } else {
+                return "$\(index + 1)"
+            }
+        }).joined(separator: ", ")
         
-        let SQLString = "UPDATE \"\(Self.schema)\" SET (\(columnSQL)) = (\(placeholderSQL)) WHERE id = $\(sortedKeys.count + 1)"
+        let SQLString = "UPDATE \"\(Self.schema)\" SET (\(columnSQL)) = (\(placeholderSQL)) WHERE id = $\(properties.count + 1)"
         
         var bindings = PostgresBindings(capacity: properties.count + 1)
         
-        for key in sortedKeys {
-            guard let value = properties[key] else { throw ModelError.saveFailed }
+        for property in properties {
+            guard let value = property.value else { throw ModelError.saveFailed }
             try bindings.append(value)
         }
 

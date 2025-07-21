@@ -10,7 +10,7 @@ import NIO
 import PostgresNIO
 @testable import SwiftDB
 
-@Suite(.serialized) class MigrationTests {
+@Suite class MigrationTests {
 
     struct Migration_1: ExplicitMigration {
         static let name: String = "20250718102456_CreateBooksTable"
@@ -49,14 +49,20 @@ import PostgresNIO
         }
     }
 
+    let dbName: String
     let db: Database
 
     init() async throws {
-        self.db = try await DatabaseTestHelpers.testDatabase()
+        self.dbName = DatabaseTestHelpers.uniqueDatabaseName()
+        self.db = try await Database.create(name: self.dbName, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
     }
 
     deinit {
         self.db.shutdown()
+        let name = self.dbName
+        Task {
+            try await Database.drop(name: name, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+        }
     }
     
     @Test func test_Database_SimpleMigrate_IsValid() async throws {
