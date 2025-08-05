@@ -29,7 +29,8 @@ public final class Application: Responder {
     public func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response {
         if let (handler, params, query) = router.match(uri: requestHead.uri, method: requestHead.method) {
             let request: Request = Request(head: requestHead, body: body, params: params, query: query, app: self)
-            return await handler(request)
+            let response = try? await handler(request)
+            return response ?? .html("<h1>ERROR!!</h1>")
         } else {
             return Response(status: .notFound)
         }

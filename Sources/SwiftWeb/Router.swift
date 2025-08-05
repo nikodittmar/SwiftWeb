@@ -7,7 +7,7 @@
 import Foundation
 import NIOHTTP1
 
-public typealias Handler = @Sendable (_ req: Request) async -> Response
+public typealias Handler = @Sendable (_ req: Request) async throws -> Response
 
 private final class RouteNode: Sendable {
     let children: [String: RouteNode]

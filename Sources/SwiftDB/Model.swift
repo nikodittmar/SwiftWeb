@@ -39,8 +39,15 @@ extension Model {
         guard let row = try await db.query(query).collect().first else {
             throw ModelError.saveFailed
         }
+
+        let saved = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
+        
+        if let id = saved.id {
+            let key = Self.cacheKey(id: id)
+            try await db.cache.set(key, to: saved)
+        }
     
-        return try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
+        return saved
     }
 
     public func destroy(on db: Database) async throws {
@@ -48,6 +55,9 @@ extension Model {
         var bindings = PostgresBindings(capacity: 1)
         bindings.append(id)
         _ = try await db.query(PostgresQuery(unsafeSQL: "DELETE FROM \"\(Self.schema)\" WHERE id = $1", binds: bindings))
+        
+        let key: String = Self.cacheKey(id: id)
+        try await db.cache.delete(key)
     }
 
     public func update(on db: Database) async throws {
@@ -78,6 +88,9 @@ extension Model {
         let query = PostgresQuery(unsafeSQL: SQLString, binds: bindings)
 
         _ = try await db.query(query)
+
+        let key: String = Self.cacheKey(id: id)
+        try await db.cache.set(key, to: self)
     }
     
     public static func all(on db: Database) async throws -> [Self] {
@@ -92,6 +105,11 @@ extension Model {
     }
     
     public static func find(id: Int, on db: Database) async throws -> Self {
+        let key: String = Self.cacheKey(id: id)
+        if let model: Self = try? await db.cache.get(key) {
+            return model
+        }
+
         var bindings = PostgresBindings(capacity: 1)
         bindings.append(id)
         
@@ -99,10 +117,19 @@ extension Model {
         
         let decoder = PostgresDecoder()
         
-        if let row = try await db.query(query).collect().first {
-            return try decoder.decode(Self.self, from: row.makeRandomAccess())
+        guard let row = try await db.query(query).collect().first else {
+            throw ModelError.notFound
         }
-        throw ModelError.notFound
+
+        let model = try decoder.decode(Self.self, from: row.makeRandomAccess())
+
+        try await db.cache.set(key, to: model)
+
+        return model
+    }
+
+    private static func cacheKey(id: Int) -> String {
+        return "\(Self.schema):\(id)"
     }
 }
 

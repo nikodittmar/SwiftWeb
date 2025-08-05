@@ -38,6 +38,16 @@ public struct Response: Sendable {
         
         return Response(status: status, headers: headers, body: buffer)
     }
+
+    public static func json<T: Encodable>(_ encodable: T, status: HTTPResponseStatus = .ok) throws -> Response {
+        let data = try JSONEncoder().encode(encodable)
+        let buffer = ByteBufferAllocator().buffer(data: data)
+        var headers = headers()
+        headers.add(name: "content-type", value: "application/json; charset=utf-8")
+        headers.add(name: "content-length", value: String(buffer.readableBytes))
+
+        return Response(status: status, headers: headers, body: buffer)
+    }
     
     public static func html(_ html: String, status: HTTPResponseStatus = .ok) -> Response {
         var buffer = ByteBufferAllocator().buffer(capacity: html.utf8.count)

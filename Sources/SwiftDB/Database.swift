@@ -15,11 +15,13 @@ public final class Database: Sendable {
     private let client: PostgresClient
     private let connectionTask: Task<Void, Never>
     public let logger: Logger
+    public let cache: Cache
 
-    private init(client: PostgresClient, connectionTask: Task<Void, Never>, logger: Logger) {
+    private init(client: PostgresClient, connectionTask: Task<Void, Never>, logger: Logger, cache: Cache = InMemoryCache()) {
         self.client = client
         self.connectionTask = connectionTask
         self.logger = logger
+        self.cache = cache
     }
 
     /// Establishes a connection to the database and performs a health check.

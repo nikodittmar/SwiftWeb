@@ -46,10 +46,24 @@ public struct Request: Sendable {
         
         return try decoder.decode(T.self, from: Data(buffer: body))
     }
+
+    public func get<T: LosslessStringConvertible>(param: String, as type: T.Type = T.self) throws -> T {
+        guard let stringValue = self.params[param] else {
+            throw RequestError.missingParameter
+        }
+
+        guard let value = T(stringValue) else {
+            throw RequestError.parameterTypeMismatch
+        }
+
+        return value
+    }
 }
 
 public enum RequestError: Error {
     case missingContentType
     case unsupportedContentType
     case noBody
+    case missingParameter
+    case parameterTypeMismatch
 }
