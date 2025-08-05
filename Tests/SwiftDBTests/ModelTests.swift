@@ -100,7 +100,7 @@ import Testing
         try await savedBook.destroy(on: db)
 
         await #expect(throws: ModelError.notFound) {
-            try await Book.find(id: 1, on: db)
+            try await Book.find(id: 1, on: self.db)
         }
     }
 

@@ -17,7 +17,7 @@ public final class Database: Sendable {
     public let logger: Logger
     public let cache: Cache
 
-    private init(client: PostgresClient, connectionTask: Task<Void, Never>, logger: Logger, cache: Cache = InMemoryCache()) {
+    private init(client: PostgresClient, connectionTask: Task<Void, Never>, logger: Logger, cache: Cache) {
         self.client = client
         self.connectionTask = connectionTask
         self.logger = logger
@@ -70,7 +70,7 @@ public final class Database: Sendable {
             throw DatabaseError.connectionFailed(underlying: error)
         }
 
-        return Database(client: client, connectionTask: connectionTask, logger: logger)
+        return Database(client: client, connectionTask: connectionTask, logger: logger, cache: config.cache)
     }
 
     /// Executes a SQL query against the database.
@@ -238,6 +238,8 @@ public struct DatabaseConfig: Sendable {
     public var tls: PostgresClient.Configuration.TLS
     /// The duration to wait before a connection attempt is considered timed out.
     public var connectionTimeout: Duration
+    /// The cache client to use for caching database query results. Defaults to an ``InMemoryCache``.
+    public var cache: Cache
 
     public init(
         host: String = "localhost", 
@@ -246,7 +248,8 @@ public struct DatabaseConfig: Sendable {
         password: String? = nil, 
         database: String,
         tls: PostgresClient.Configuration.TLS = .disable,
-        connectionTimeout: Duration = .seconds(5)
+        connectionTimeout: Duration = .seconds(5),
+        cache: Cache = InMemoryCache()
     ) {
         self.host = host
         self.port = port
@@ -255,5 +258,6 @@ public struct DatabaseConfig: Sendable {
         self.database = database
         self.tls = tls
         self.connectionTimeout = connectionTimeout
+        self.cache = cache
     }
 }
