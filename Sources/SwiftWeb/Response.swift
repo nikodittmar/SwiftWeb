@@ -13,6 +13,8 @@ public struct Response: Sendable {
     public var headers: HTTPHeaders
     public var body: ByteBuffer?
 
+    static let dateProvider: HeaderDateProvider = HeaderDateProvider()
+
     public init(status: HTTPResponseStatus, headers: HTTPHeaders = HTTPHeaders(), body: ByteBuffer? = nil) {
         self.status = status
         self.headers = headers
@@ -28,17 +30,6 @@ public struct Response: Sendable {
         }
     }
     
-    public static func json(_ json: String, status: HTTPResponseStatus = .ok) -> Response {
-        var buffer = ByteBufferAllocator().buffer(capacity: json.utf8.count)
-        buffer.writeString(json)
-        
-        var headers = headers()
-        headers.add(name: "content-type", value: "application/json; charset=utf-8")
-        headers.add(name: "content-length", value: String(buffer.readableBytes))
-        
-        return Response(status: status, headers: headers, body: buffer)
-    }
-
     public static func json<T: Encodable>(_ encodable: T, status: HTTPResponseStatus = .ok) throws -> Response {
         let data = try JSONEncoder().encode(encodable)
         let buffer = ByteBufferAllocator().buffer(data: data)
@@ -68,22 +59,9 @@ public struct Response: Sendable {
     
     public static func headers() -> HTTPHeaders {
         var headers = HTTPHeaders()
-        let date = Date.now.formatted(
-            Date.VerbatimFormatStyle(
-                format: """
-                \(weekday: .abbreviated), \
-                \(day: .twoDigits) \
-                \(month: .abbreviated) \ 
-                \(year: .defaultDigits) \
-                \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) \
-                \(timeZone: .specificName(.short))
-                """,
-                locale: Locale(identifier: "en_US_POSIX"),
-                timeZone: .gmt,
-                calendar: Calendar(identifier: .gregorian)
-            )
-        )
-        headers.add(name: "date", value: date)
+        
+        headers.add(name: "date", value: dateProvider.get())
+        
         headers.add(name: "cache-control", value: "no-cache, no-store, must-revalidate")
 
         return headers

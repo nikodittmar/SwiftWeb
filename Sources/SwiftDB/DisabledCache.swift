@@ -28,8 +28,7 @@ public final class DisabledCache: Cache {
     /// - Parameters:
     ///   - key: The key for the model. This parameter is ignored.
     ///   - value: The model to store. This parameter is ignored.
-    ///   - expiration: This parameter is ignored.
-    public func set<T>(_ key: String, to value: T, expiration: Duration? = nil) async throws where T : Model {
+    public func set<T>(_ key: String, to value: T) async throws where T : Model {
         // This cache does nothing, so the method is empty.
     }
 

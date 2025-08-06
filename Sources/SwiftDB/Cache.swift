@@ -24,9 +24,7 @@ public protocol Cache: Sendable {
     /// - Parameters:
     ///   - key: The unique key to store the value under.
     ///   - value: The model instance to cache.
-    ///   - expiration: The duration until the cache entry should be considered expired. A `nil` value
-    ///     indicates that the entry should not expire. Implementations may choose to ignore this parameter.
-    func set<T: Model>(_ key: String, to value: T, expiration: Duration?) async throws
+    func set<T: Model>(_ key: String, to value: T) async throws
 
     /// Deletes a model from the cache for a given key.
     ///

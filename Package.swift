@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftWeb",
     platforms: [
-        .macOS(.v13),
+        .macOS(.v15),
     ],
     products: [
         .library(name: "SwiftDB", targets: ["SwiftDB"]),

@@ -69,8 +69,7 @@ public actor InMemoryCache: Cache {
     /// - Parameters:
     ///   - key: The unique key to store the value under.
     ///   - value: The model instance to cache.
-    ///   - expiration: This parameter is ignored by `InMemoryCache`.
-    public func set<T: Model>(_ key: String, to value: T, expiration: Duration? = nil) async throws where T : Model {
+    public func set<T: Model>(_ key: String, to value: T) async throws where T : Model {
 
         if let node = self.cache[key] {
             self.remove(node: node)
