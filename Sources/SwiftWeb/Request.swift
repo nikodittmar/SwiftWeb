@@ -58,6 +58,26 @@ public struct Request: Sendable {
 
         return value
     }
+
+    public func get<T: Decodable>(_ model: T.Type = T.self, encoding: Encoding) throws -> T {
+        guard let body = body else {
+            throw RequestError.noBody
+        }
+
+        let data = Data(buffer: body)
+
+        switch encoding {
+            case .json:
+                return try JSONDecoder().decode(T.self, from: data)
+            case .form:
+                return try URLQueryDecoder().decode(T.self, from: data)
+        }
+    }   
+}
+
+public enum Encoding {
+    case form
+    case json
 }
 
 public enum RequestError: Error {
@@ -66,4 +86,5 @@ public enum RequestError: Error {
     case noBody
     case missingParameter
     case parameterTypeMismatch
+    case decodingError
 }

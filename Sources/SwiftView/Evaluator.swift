@@ -19,6 +19,10 @@ enum Evaluator {
         return try render(ast: syntaxTree, context: contextDict)
     }
 
+    static func evaluate(syntaxTree: [ASTNode]) throws -> String {
+        return try render(ast: syntaxTree, context: [:])
+    }
+
     private static func render(ast: [ASTNode], context: [String: Any]) throws -> String {
         var result = ""
         

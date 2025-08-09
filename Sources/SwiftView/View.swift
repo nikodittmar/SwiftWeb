@@ -90,6 +90,20 @@ public final class Views: Sendable {
         }
         return try Evaluator.evaluate(syntaxTree: syntaxTree, context: context)
     }
+
+    /// Renders a view.
+    ///
+    /// - Parameters:
+    ///   - name: The name of the template to render. For a file located at
+    ///     `Views/users/profile.swift.html`, the name would be `"users/profile"`.
+    /// - Throws: A ``ViewStoreError/viewNotFound(name:)`` if the template name doesn't exist.
+    /// - Returns: An HTML ``String`` with the template's content and data merged.
+    public func render(_ name: String) throws -> String {
+        guard let syntaxTree = views[name] else {
+            throw ViewStoreError.viewNotFound(name: name)
+        }
+        return try Evaluator.evaluate(syntaxTree: syntaxTree)
+    }
 }
 
 /// An error that can occur during the view rendering process.

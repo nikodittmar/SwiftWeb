@@ -9,11 +9,18 @@ import PostgresNIO
 
 public protocol Model: Codable, Sendable {
     static var schema: String { get }
-    var id: Int? { get }
+    var id: Int? { get set }
 }
 
 extension Model {
-    public func save(on db: Database) async throws -> Self {
+    public func getId() throws -> Int {
+        guard let id = self.id else {
+            throw ModelError.missingId
+        }
+        return id
+    }
+
+    public mutating func save(on db: Database) async throws {
         let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
         
         let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
@@ -47,11 +54,15 @@ extension Model {
             try await db.cache.set(key, to: saved)
         }
     
-        return saved
+        self.id = saved.id
     }
 
     public func destroy(on db: Database) async throws {
         guard let id = self.id else { throw ModelError.missingId }
+        try await Self.destroy(id: id, on: db)
+    }
+
+    public static func destroy(id: Int, on db: Database) async throws {
         var bindings = PostgresBindings(capacity: 1)
         bindings.append(id)
         _ = try await db.query(PostgresQuery(unsafeSQL: "DELETE FROM \"\(Self.schema)\" WHERE id = $1", binds: bindings))
@@ -62,7 +73,10 @@ extension Model {
 
     public func update(on db: Database) async throws {
         guard let id = self.id else { throw ModelError.missingId }
+        try await self.update(id: id, on: db)
+    }
 
+    public func update(id: Int, on db: Database) async throws {
         let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
         
         let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
