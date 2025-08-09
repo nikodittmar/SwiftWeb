@@ -8,6 +8,11 @@
 
 > The developer experience of Rails with the type safety and speed of Swift.
 
+![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![macOS](https://img.shields.io/badge/macOS-15%2B-blue)
+![Swift](https://img.shields.io/badge/Swift-6%2B-orange)
+
 SwiftWeb is a HTTP web framework for Swift. It aims to replicate the rapid development and ergonomics of Ruby on Rails while being extremely performant and type safe. To achieve this, SwiftWeb leverages Swift's modern concurrency system to handle web requests with exceptional efficiency and safety.
 
 -----
