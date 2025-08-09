@@ -159,12 +159,69 @@ func routes() -> Router {
 
 ## 🚀 Performance
 
-Tested on 12 core Apple M2 Pro with 16 GB of memory against Vapor and Ruby on Rails.
+Tested on 12 core Apple M2 Pro with 16 GB of memory.
 
 ### Happy Path
 
+```bash
+$ wrk -t10 -c130 -d15s http://localhost:8080/hello  
+Running 15s test @ http://localhost:8080/hello
+  10 threads and 130 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.38ms    4.99ms  77.22ms   90.86%
+    Req/Sec    15.23k     1.99k   45.54k    87.56%
+  2277978 requests in 15.10s, 410.59MB read
+Requests/sec: 150860.34
+Transfer/sec:     27.19MB
+```
+
+```bash
+$ wrk -t1 -c1 -d15s http://localhost:8080/hello 
+Running 15s test @ http://localhost:8080/hello
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    36.09us    3.81us 498.00us   95.24%
+    Req/Sec    27.11k   801.51    30.13k    97.35%
+  407366 requests in 15.10s, 73.43MB read
+Requests/sec:  26979.08
+Transfer/sec:      4.86MB
+```
+
 ### Database Fetch
 
+```bash
+$ wrk -t10 -c130 -d15s http://localhost:8080/books/1
+Running 15s test @ http://localhost:8080/books/1
+  10 threads and 130 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.49ms    2.34ms  39.84ms   91.13%
+    Req/Sec    14.18k     2.66k   63.11k    83.42%
+  2118630 requests in 15.10s, 456.63MB read
+Requests/sec: 140310.21
+Transfer/sec:     30.24MB
+```
+
+```bash
+$ wrk -t1 -c1 -d15s http://localhost:8080/books/1
+Running 15s test @ http://localhost:8080/books/1
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    39.99us    3.85us 426.00us   94.64%
+    Req/Sec    24.52k   693.66    25.57k    96.69%
+  368416 requests in 15.10s, 79.40MB read
+Requests/sec:  24398.46
+Transfer/sec:      5.26MB
+```
+
+### Results Comparison
+
+| Database Fetch Single-Threaded Latency  | Database Fetch Single-Threaded Throughput |
+| :---: | :---: |
+| <img width="300" alt="db_single_thread_latency" src="https://github.com/user-attachments/assets/bef2dec4-eeba-4726-ba49-b89ac22c42af" /> | <img width="300" alt="db_multi_thread_throughput" src="https://github.com/user-attachments/assets/ef61fdcf-d3bd-4149-ba5b-ca277262c321" /> |
+
+| Happy Path Single-Threaded Latency  | Happy Path Multi-Threaded Throughput |
+| :---: | :---: |
+| <img width="300" alt="happy_single_thread_latency" src="https://github.com/user-attachments/assets/cf854938-79ee-431c-8f2c-431750249f4f" /> | <img width="300" alt="happy_multi_thread_throughput" src="https://github.com/user-attachments/assets/6e808265-2a90-4fe3-ad0b-e059f23b4221" /> |
 
 ## 🤝 Contributing
 
