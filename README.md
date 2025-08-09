@@ -42,7 +42,7 @@ SwiftWeb is a HTTP web framework for Swift. It aims to replicate the rapid devel
 
 ## 🎯 Showcase
 
-Similar to Rails, SwiftWeb includes everything needed to create performant databased-backed web applications according to the[Model-View-Controller (MVC)](https://en.wikipedia.org/wiki/Model-view-controller) pattern.
+Similar to Rails, SwiftWeb includes everything needed to create performant databased-backed web applications according to the [Model-View-Controller (MVC)](https://en.wikipedia.org/wiki/Model-view-controller) pattern.
 
 ### Models
 
