@@ -165,7 +165,7 @@ func routes() -> Router {
 
 ## 🚀 Performance
 
-Tested on 12 core Apple M2 Pro with 16 GB of memory.
+Tested on 12 core Apple M2 Pro with 16 GB of memory using [wrk](https://github.com/wg/wrk).
 
 ### Happy Path
 
