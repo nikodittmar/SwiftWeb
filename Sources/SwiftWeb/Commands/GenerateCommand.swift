@@ -31,7 +31,7 @@ struct GenerateMigrationCommand<T: SwiftWebConfig>: ParsableCommand {
     var name: String
     
     func run() throws {
-        print("[SwiftWeb] 🛠️ Generating migration: \(name)...")
+        print(swiftweb: "🛠️ Generating migration: \(name)...")
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyyMMddHHmmss"
@@ -67,7 +67,7 @@ struct GenerateMigrationCommand<T: SwiftWebConfig>: ParsableCommand {
         """
 
         do { try fileContent.write(to: destinationURL, atomically: true, encoding: .utf8) } catch {
-            print("[SwiftWeb] ❌ Error writing migration file: \(error)")
+            print(swiftweb: "❌ Error writing migration file: \(error)")
             return
         }
 
@@ -77,7 +77,7 @@ struct GenerateMigrationCommand<T: SwiftWebConfig>: ParsableCommand {
 
         let searchString = "static let migrations: [Migration.Type] = ["
         guard let range = fileContents.range(of: searchString) else {
-            print("[SwiftWeb] ❌ Could not find `migrations` array in \(appConfigFileURL.path)")
+            print(swiftweb: "❌ Could not find `migrations` array in \(appConfigFileURL.path)")
             return
         }
 
@@ -86,10 +86,10 @@ struct GenerateMigrationCommand<T: SwiftWebConfig>: ParsableCommand {
         fileContents.insert(contentsOf: stringToInsert, at: range.upperBound)
 
         do { try fileContents.write(to: appConfigFileURL, atomically: true, encoding: .utf8) } catch {
-            print("[SwiftWeb] ❌ Error registering migration: \(error)")
+            print(swiftweb: "❌ Error registering migration: \(error)")
             return
         }
 
-        print("[SwiftWeb] ✅ Migration \(name) generated successfully!")
+        print("✅ Migration \(name) generated successfully!")
     }
 }

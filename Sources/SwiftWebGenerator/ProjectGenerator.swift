@@ -6,7 +6,7 @@
 //
 
 import Foundation
-/*I
+
 struct ProjectGenerator {
     let projectName: String
     let fileManager = FileManager.default
@@ -16,7 +16,7 @@ struct ProjectGenerator {
     }
 
     func generate() throws {
-        guard let templateURL = Bundle.module.url(forResource: "ProjectTemplate", withExtension: nil) else {
+        guard let templateURL = Bundle.module.url(forResource: "Template", withExtension: nil) else {
             fatalError("ProjectTemplate directory not found. Check your Package.swift resources.")
         }
         
@@ -29,7 +29,7 @@ struct ProjectGenerator {
         print("✅ Project generated successfully!")
         print("\nTo get started:")
         print("  cd \(projectName)")
-        print("  swift run")
+        print("  swift run \(projectName) server")
     }
 
     
@@ -77,4 +77,3 @@ struct ProjectGenerator {
 public enum ProjectGeneratorError: Error {
     case failedToGetDirectory
 }
-*/

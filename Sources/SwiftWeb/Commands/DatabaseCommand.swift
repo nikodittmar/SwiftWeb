@@ -33,10 +33,10 @@ struct MigrateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     }
     
     func run() async throws {
-        print("[SwiftWeb] ⚙️ Running migrations...")
+        print(swiftweb: "⚙️ Running migrations...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
-            print("[SwiftWeb] ❌ Error loading .env file: \(error)")
+            print(swiftweb: "❌ Error loading .env file: \(error)")
             return
         }
 
@@ -48,9 +48,9 @@ struct MigrateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
                 eventLoopGroup: eventLoopGroup
             )
             try await db.migrate(T.migrations)
-            print("[SwiftWeb] ✅ Migrations completed successfully!")
+            print(swiftweb: "✅ Migrations completed successfully!")
         } catch {
-            print("[SwiftWeb] ❌ Error running migrations: \(error)")
+            print(swiftweb: "❌ Error running migrations: \(error)")
         } 
     }
 }
@@ -65,15 +65,15 @@ struct CreateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     }
     
     func run() async throws {
-        print("[SwiftWeb] 🐘 Creating PostgreSQL database...")
+        print(swiftweb: "🐘 Creating PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
-            print("[SwiftWeb] ❌ Error loading .env file: \(error)")
+            print(swiftweb: "❌ Error loading .env file: \(error)")
             return
         }
 
         guard let name = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
-            print("[SwiftWeb] ❌ Error: Database name not found in the environment.")
+            print(swiftweb: "❌ Error: Database name not found in the environment.")
             return
         }
 
@@ -81,11 +81,11 @@ struct CreateCommand<T: SwiftWebConfig>: AsyncParsableCommand {
 
         do {
             _ = try await Database.create(name: name, maintenanceConfig: getDatabaseConfig(maintenance: true), eventLoopGroup: eventLoopGroup)
-            print("[SwiftWeb] ✅ Database '\(name)' created successfully!")
+            print(swiftweb: "✅ Database '\(name)' created successfully!")
         } catch DatabaseError.databaseAlreadyExists(_, _) {
-            print("[SwiftWeb] ⚠️ Database '\(name)' already exists.")
+            print(swiftweb: "⚠️ Database '\(name)' already exists.")
         } catch {
-            print("[SwiftWeb] ❌ Failed to create database '\(name)': \(error)")
+            print(swiftweb: "❌ Failed to create database '\(name)': \(error)")
         }
     }
 }
@@ -100,15 +100,15 @@ struct DropCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     }
     
     func run() async throws {
-        print("[SwiftWeb] 🗑️ Dropping PostgreSQL database...")
+        print(swiftweb: "🗑️ Dropping PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
-            print("[SwiftWeb] ❌ Error loading .env file: \(error)")
+            print(swiftweb: "❌ Error loading .env file: \(error)")
             return
         }
 
         guard let name = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
-            print("[SwiftWeb] ❌ Error: Database name found in the environment.")
+            print(swiftweb: "❌ Error: Database name found in the environment.")
             return
         }
 
@@ -116,9 +116,9 @@ struct DropCommand<T: SwiftWebConfig>: AsyncParsableCommand {
 
         do {
             try await Database.drop(name: name, maintenanceConfig: getDatabaseConfig(maintenance: true), eventLoopGroup: eventLoopGroup)
-            print("[SwiftWeb] ✅ Database '\(name)' dropped successfully!")
+            print(swiftweb: "✅ Database '\(name)' dropped successfully!")
         } catch {
-            print("[SwiftWeb] ❌ Failed to drop database '\(name)': \(error)")
+            print(swiftweb: "❌ Failed to drop database '\(name)': \(error)")
         }
     }
 }
@@ -133,32 +133,32 @@ struct ResetCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     }
     
     func run() async throws {
-        print("[SwiftWeb] 🔄 Resetting PostgreSQL database...")
+        print(swiftweb: "🔄 Resetting PostgreSQL database...")
 
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
-            print("[SwiftWeb] ❌ Error loading .env file: \(error)")
+            print(swiftweb: "❌ Error loading .env file: \(error)")
             return
         }
 
         guard let name = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
-            print("[SwiftWeb] ❌ Error: Database name found in the environment.")
+            print(swiftweb: "❌ Error: Database name found in the environment.")
             return
         }
 
         let eventLoopGroup: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
         do {
-            print("[SwiftWeb] 🗑️ Dropping PostgreSQL database...")
+            print(swiftweb: "🗑️ Dropping PostgreSQL database...")
             try await Database.drop(name: name, maintenanceConfig: getDatabaseConfig(maintenance: true), eventLoopGroup: eventLoopGroup)
-            print("[SwiftWeb] ✅ Database '\(name)' dropped successfully!")
-            print("[SwiftWeb] 🐘 Creating PostgreSQL database...")
+            print(swiftweb: "✅ Database '\(name)' dropped successfully!")
+            print(swiftweb: "🐘 Creating PostgreSQL database...")
             let db = try await Database.create(name: name, maintenanceConfig: getDatabaseConfig(maintenance: true), eventLoopGroup: eventLoopGroup)
-            print("[SwiftWeb] ✅ Database '\(name)' created successfully!")
-            print("[SwiftWeb] ⚙️ Running migrations...")
+            print(swiftweb: "✅ Database '\(name)' created successfully!")
+            print(swiftweb: "⚙️ Running migrations...")
             try await db.migrate(T.migrations)
-            print("[SwiftWeb] ✅ Migrations applied successfully!")
+            print(swiftweb: "✅ Migrations applied successfully!")
         } catch {
-            print("[SwiftWeb] ❌ Failed to reset database '\(name)': \(error)")
+            print(swiftweb: "❌ Failed to reset database '\(name)': \(error)")
         }
     }
 }
