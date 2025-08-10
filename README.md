@@ -223,11 +223,11 @@ Transfer/sec:      5.26MB
 
 | Database Fetch Single-Threaded Latency  | Database Fetch Multi-Threaded Throughput |
 | :---: | :---: |
-| <img width="300" alt="db_single_thread_latency" src="https://github.com/user-attachments/assets/bef2dec4-eeba-4726-ba49-b89ac22c42af" /> | <img width="300" alt="db_multi_thread_throughput" src="https://github.com/user-attachments/assets/ef61fdcf-d3bd-4149-ba5b-ca277262c321" /> |
+| <img width="300" alt="database single-threaded latency" src="https://github.com/user-attachments/assets/bef2dec4-eeba-4726-ba49-b89ac22c42af" /> | <img width="300" alt="database multi-threaded throughput" src="https://github.com/user-attachments/assets/ef61fdcf-d3bd-4149-ba5b-ca277262c321" /> |
 
 | Happy Path Single-Threaded Latency  | Happy Path Multi-Threaded Throughput |
 | :---: | :---: |
-| <img width="300" alt="happy_single_thread_latency" src="https://github.com/user-attachments/assets/cf854938-79ee-431c-8f2c-431750249f4f" /> | <img width="300" alt="happy_multi_thread_throughput" src="https://github.com/user-attachments/assets/6e808265-2a90-4fe3-ad0b-e059f23b4221" /> |
+| <img width="300" alt="happy path single-threaded latency" src="https://github.com/user-attachments/assets/cf854938-79ee-431c-8f2c-431750249f4f" /> | <img width="300" alt="happy path multi-threaded throughput" src="https://github.com/user-attachments/assets/6e808265-2a90-4fe3-ad0b-e059f23b4221" /> |
 
 ## 🤝 Contributing
 
