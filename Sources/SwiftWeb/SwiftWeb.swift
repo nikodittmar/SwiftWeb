@@ -45,7 +45,7 @@ public struct SwiftWeb<T: SwiftWebConfig>: AsyncParsableCommand {
 }
 
 internal func print(swiftweb message: String) {
-    print("\033[38;5;16;48;5;39m SwiftWeb \033[0m \(message)")
+    print("\u{1B}[38;5;16;48;5;39m SwiftWeb \u{1B}[0m \(message)")
 }
 
 

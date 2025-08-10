@@ -22,7 +22,7 @@ struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
         print(swiftweb: "🚀 Starting Server...")
         
         do { try loadDotEnv(from: T.dotEnvPath) } catch {
-            print("[SwiftWeb] ❌ Error loading .env file: \(error)")
+            print(swiftweb: "❌ Error loading .env file: \(error)")
             return
         }
 

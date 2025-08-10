@@ -166,17 +166,17 @@ struct ResetCommand<T: SwiftWebConfig>: AsyncParsableCommand {
 func getDatabaseConfig(maintenance: Bool = false) throws -> DatabaseConfig {
 
     guard let dbName = ProcessInfo.processInfo.environment["DATABASE_NAME"] else {
-        print("[SwiftWeb] ❌ Error: Database name not found in the environment.")
+        print(swiftweb: "❌ Error: Database name not found in the environment.")
         throw GetDatabaseError.missingDatabaseName
     }
 
     guard let username = ProcessInfo.processInfo.environment["DATABASE_USER"] else {
-        print("[SwiftWeb] ❌ Error: Database username not found in the environment.")
+        print(swiftweb: "❌ Error: Database username not found in the environment.")
         throw GetDatabaseError.missingDatabaseUser
     }
 
     guard let host = ProcessInfo.processInfo.environment["DATABASE_HOST"] else {
-        print("[SwiftWeb] ❌ Error: Database host not found in the environment.")
+        print(swiftweb: "❌ Error: Database host not found in the environment.")
         throw GetDatabaseError.missingDatabaseHost
     }
 
@@ -205,7 +205,7 @@ func loadDotEnv(from url: URL) throws {
         return
     }
 
-    print("[SwiftWeb] 📁 Loading .env file for development")
+    print(swiftweb: "📁 Loading .env file for development")
 
     guard let fileContents = try? String(contentsOf: url, encoding: .utf8) else {
         throw DotEnvError.notFound
