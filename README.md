@@ -220,7 +220,7 @@ Transfer/sec:      5.26MB
 
 ### Results Comparison
 
-| Database Fetch Single-Threaded Latency  | Database Fetch Single-Threaded Throughput |
+| Database Fetch Single-Threaded Latency  | Database Fetch Multi-Threaded Throughput |
 | :---: | :---: |
 | <img width="300" alt="db_single_thread_latency" src="https://github.com/user-attachments/assets/bef2dec4-eeba-4726-ba49-b89ac22c42af" /> | <img width="300" alt="db_multi_thread_throughput" src="https://github.com/user-attachments/assets/ef61fdcf-d3bd-4149-ba5b-ca277262c321" /> |
 
