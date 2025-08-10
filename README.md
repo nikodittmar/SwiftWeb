@@ -22,7 +22,8 @@ SwiftWeb is a HTTP web framework for Swift. It aims to replicate the rapid devel
 1. Install SwiftWeb in your terminal if you haven't yet:
    
    ```bash
-   $ swift package install --url todo.com
+   $ brew tap nikodittmar/swiftweb
+   $ brew install swiftweb
    ```
 
 2. In the terminal, create a new SwiftWeb application:
