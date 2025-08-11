@@ -57,7 +57,7 @@ public final class Application: Responder {
             .childChannelOption(.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
 
         let channel = try! bootstrap.bind(host: "127.0.0.1", port: port).wait()
-        print("Server running on \(channel.localAddress!)")
+        print(swiftweb: "Server running on \(channel.localAddress!)")
 
         try! channel.closeFuture.wait()
     }

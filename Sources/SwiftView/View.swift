@@ -84,11 +84,16 @@ public final class Views: Sendable {
     ///   - context: An ``Encodable`` object whose properties will be available inside the template.
     /// - Throws: A ``ViewStoreError/viewNotFound(name:)`` if the template name doesn't exist.
     /// - Returns: An HTML ``String`` with the template's content and data merged.
-    public func render<T: Encodable>(_ name: String, with context: T) throws -> String {
-        guard let syntaxTree = views[name] else {
-            throw ViewStoreError.viewNotFound(name: name)
+    public func render<T: Encodable>(_ name: String, with context: T, layout: Layout? = nil) throws -> String {
+        guard let syntaxTree = views[name] else { throw ViewStoreError.viewNotFound(name: name) }
+
+        let view = try Evaluator.evaluate(syntaxTree: syntaxTree, context: context)
+
+        if let layout = layout { 
+            return try layout.render(loadedViews: views, yield: view) 
+        } else {
+            return view
         }
-        return try Evaluator.evaluate(syntaxTree: syntaxTree, context: context)
     }
 
     /// Renders a view.
@@ -98,11 +103,20 @@ public final class Views: Sendable {
     ///     `Views/users/profile.swift.html`, the name would be `"users/profile"`.
     /// - Throws: A ``ViewStoreError/viewNotFound(name:)`` if the template name doesn't exist.
     /// - Returns: An HTML ``String`` with the template's content and data merged.
-    public func render(_ name: String) throws -> String {
-        guard let syntaxTree = views[name] else {
-            throw ViewStoreError.viewNotFound(name: name)
+    public func render(_ name: String, layout: Layout? = nil) throws -> String {
+        guard let syntaxTree = views[name] else { throw ViewStoreError.viewNotFound(name: name) }
+
+        let view = try Evaluator.evaluate(syntaxTree: syntaxTree)
+
+        if let layout = layout { 
+            return try layout.render(loadedViews: views, yield: view) 
+        } else {
+            return view
         }
-        return try Evaluator.evaluate(syntaxTree: syntaxTree)
+    }
+
+    private struct LayoutContext: Encodable {
+        let yield: String
     }
 }
 

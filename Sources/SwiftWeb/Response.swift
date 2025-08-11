@@ -8,6 +8,7 @@ import Foundation
 import NIO
 import NIOHTTP1
 import SwiftDB
+import SwiftView
 
 public struct Response: Sendable {
     public var status: HTTPResponseStatus
@@ -22,22 +23,22 @@ public struct Response: Sendable {
         self.body = body
     }
     
-    public static func view<T: Encodable>(_ name: String, with context: T, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response {
-        return .html(try request.app.views.render(name, with: context), status: status)
+    public static func view<T: Encodable>(_ name: String, layout: Layout? = Layout(name: "Layouts/application"), with context: T, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response {
+        return .html(try request.app.views.render(name, with: context, layout: layout), status: status)
     }
 
-    public static func view<T: Collection & Encodable>(_ name: String, collection: T, key: String, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response where T.Element: Encodable {
+    public static func view<T: Collection & Encodable>(_ name: String, layout: Layout? = Layout(name: "Layouts/application"), collection: T, key: String, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response where T.Element: Encodable {
         let context = [ key: collection ]
-        return try .view(name, with: context, on: request, status: status)
+        return try .view(name, layout: layout, with: context, on: request, status: status)
     }
 
-    public static func view<T: Collection & Encodable>(_ name: String, models: T, key: String? = nil, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response where T.Element: Model {
+    public static func view<T: Collection & Encodable>(_ name: String, layout: Layout? = Layout(name: "Layouts/application"), models: T, key: String? = nil, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response where T.Element: Model {
         let collectionKey = key ?? T.Element.schema
-        return try .view(name, collection: models, key: collectionKey, on: request, status: status)
+        return try .view(name, layout: layout, collection: models, key: collectionKey, on: request, status: status)
     }
 
-    public static func view(_ name: String, on request: Request, status: HTTPResponseStatus = .ok) throws -> Response {
-        return .html(try request.app.views.render(name), status: status)
+    public static func view(_ name: String, layout: Layout? = Layout(name: "Layouts/application"), on request: Request, status: HTTPResponseStatus = .ok) throws -> Response {
+        return .html(try request.app.views.render(name, layout: layout), status: status)
     }
     
     public static func json<T: Encodable>(_ encodable: T, status: HTTPResponseStatus = .ok) throws -> Response {
