@@ -6,8 +6,15 @@
 //
 import Foundation
 import NIOHTTP1
+import SwiftWebCore
 
 public typealias Handler = @Sendable (_ req: Request) async throws -> Response
+
+public struct MatchedRoute: Sendable {
+    let handler: Handler
+    let pathParameters: [String: String]
+    let queryParameters: [String: String]
+}
 
 private final class RouteNode: Sendable {
     let children: [String: RouteNode]
@@ -57,21 +64,21 @@ public final class Router: Sendable {
     
     }
     
-    public func match(uri: String, method: HTTPMethod) -> (handler: Handler, params: [String: String], query: [String: String])? {
-    
-        let uriComponents = URLComponents(string: uri)
-        
-        let pathComponents: [String] = uriComponents?.path.split(separator: "/").map(String.init) ?? []
-    
-        var query: [String: String] = [:]
-        
-        for queryItem in uriComponents?.queryItems ?? [] {
-            query[queryItem.name] = queryItem.value ?? ""
+    public func match(uri: String, method: HTTPMethod) throws -> MatchedRoute {
+        guard let uriComponents = URLComponents(string: uri) else {
+            throw SwiftWebError(type: .badRequest, reason: "The provided URI string '\(uri)' is malformed and could not be parsed.")
         }
+            
+        let query: [String: String] = uriComponents.queryItems?.reduce(into: [:]) { result, item in
+            result[item.name] = item.value
+        } ?? [:]
              
         var params: [String: String] = [:]
+
+        let pathComponents: [String] = uriComponents.path.split(separator: "/").map(String.init)
         
         var current = root
+
         for component in pathComponents {
             if let child = current.children[component] {
                 current = child
@@ -79,15 +86,15 @@ public final class Router: Sendable {
                 current = parameter.node
                 params[parameter.name] = component
             } else {
-                return nil
+                throw SwiftWebError(type: .notFound, reason: "No route found for path '\(uriComponents.path)'. Failed to match segment '\(component)'.")
             }
         }
         
-        if let handler = current.handlers[method.rawValue] {
-            return (handler: handler, params: params, query: query)
-        } else {
-            return nil
+        guard let handler = current.handlers[method.rawValue] else {
+            throw SwiftWebError(type: .methodNotAllowed, reason: "A route exists for path '\(uriComponents.path)', but not for method '\(method.rawValue)'.")
         }
+
+        return MatchedRoute(handler: handler, pathParameters: params, queryParameters: query)
     }
 }
 
@@ -241,11 +248,6 @@ public final class RouterBuilder {
     }
     
     private func convertChildren(_ mutableChildren: [String : MutableRouteNode]) -> [String: RouteNode] {
-        var children: [String: RouteNode] = [:]
-        for (component, node) in mutableChildren {
-            children[component] = convertNode(node)
-        }
-        
-        return children
+        return mutableChildren.mapValues { convertNode($0) }
     }
 }

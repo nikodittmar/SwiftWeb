@@ -6,6 +6,8 @@
 //
 import NIO
 import NIOHTTP1
+import Logging
+import SwiftWebCore
 
 public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     public typealias InboundIn = HTTPServerRequestPart
@@ -28,14 +30,15 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     }
     
     private var body: ByteBuffer?
-    private var keepAlive: Bool = false
     private var state: State = .idle
     private var requestHead: HTTPRequestHead?
     
-    private let responder: Responder
-    
-    public init(responder: Responder) {
-        self.responder = responder
+    private let application: Application
+
+    private var matchedRoute: MatchedRoute? = nil 
+
+    public init(application: Application) {
+        self.application = application
     }
     
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -43,9 +46,21 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
         
         switch reqPart {
         case .head(let head):
-            self.keepAlive = head.isKeepAlive
+
+            #if SWIFTWEB_LOGGING_ENABLED
+            application.logger.info("Started \(head.method.rawValue) \(head.uri)")
+            #endif
+
             self.requestHead = head
             self.state.requestReceived()
+
+            do {
+                self.matchedRoute = try self.application.router.match(uri: head.uri, method: head.method)
+            } catch {
+                self.state.requestComplete()
+                self.handleError(error, context: context, version: head.version)
+            }
+
         case .body(var buffer):
             if self.body == nil {
                 self.body = buffer
@@ -53,28 +68,74 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
                 self.body!.writeBuffer(&buffer)
             }
         case .end:
-            self.state.requestComplete()
-            if let request = self.requestHead {
-                let responder = self.responder
-                let body = self.body
-                let promise = context.eventLoop.makePromise(of: Response.self)
-                promise.completeWithTask {
-                    return await responder.respond(to: request, body: body)
-                }
-                promise.futureResult.whenSuccess { response in
-                    let head = HTTPResponseHead(version: request.version, status: response.status, headers: response.headers)
-                    context.write(self.wrapOutboundOut(.head(head)), promise: nil)
-                    if let body = response.body {
-                        context.write(self.wrapOutboundOut(.body(.byteBuffer(body))), promise: nil)
-                    }
-                    context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
-                    self.state.responseComplete()
-                    self.body = nil
-                    self.requestHead = nil
-                }
+            guard self.state == .waitingForRequestBody else {
+                return
             }
-            
+
+            self.state.requestComplete()
+
+            let application = self.application
+
+            guard let requestHead = self.requestHead, let matchedRoute = self.matchedRoute else {
+                self.handleError(SwiftWebError(type: .internalServerError, reason: "HTTPHandler failed to process request head or match route before request end"), context: context, version: .http1_1)
+                return
+            }
+
+            let promise = context.eventLoop.makePromise(of: Response.self)
+
+            let request: Request = Request(head: requestHead, body: self.body, params: matchedRoute.pathParameters, query: matchedRoute.queryParameters, app: application)
+
+            promise.completeWithTask {
+                return try await matchedRoute.handler(request)
+            }
+
+            promise.futureResult.whenSuccess { response in
+                self.respond(with: response, context: context, version: requestHead.version)
+            }
+
+            promise.futureResult.whenFailure { error in
+                self.handleError(error, context: context, version: requestHead.version)
+            }            
         }
     }
-    
+
+    private func handleError(_ error: Error, context: ChannelHandlerContext, version: HTTPVersion) {
+        #if SWIFTWEB_LOGGING_ENABLED
+        if let swiftWebError = error as? SwiftWebError {
+            application.logger.error("Completed with error \(swiftWebError.type.status.code) \(swiftWebError.type.status.reasonPhrase) reason: \(swiftWebError.reason)")
+        } else {
+            application.logger.error("Completed with unknown error \(error.localizedDescription)")
+        }
+        #endif
+
+        self.respond(with: .error(error, on: application), context: context, version: version)
+    }
+
+    private func respond(with response: Response, context: ChannelHandlerContext, version: HTTPVersion) {
+        #if SWIFTWEB_LOGGING_ENABLED
+        if let requestHead = self.requestHead {
+            application.logger.info("Completed \(response.status.code) \(response.status.reasonPhrase) for \(requestHead.method.rawValue) \(requestHead.uri)")
+        } else {
+            application.logger.warning("Completed \(response.status.code) \(response.status.reasonPhrase) for an unknown URI and method")
+        }
+        #endif
+
+        let head = HTTPResponseHead(version: version, status: response.status, headers: response.headers)
+
+        context.write(self.wrapOutboundOut(.head(head)), promise: nil)
+
+        if let body = response.body {
+            context.write(self.wrapOutboundOut(.body(.byteBuffer(body))), promise: nil)
+        }
+
+        context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+
+        self.state.responseComplete()
+
+        self.body = nil
+        self.requestHead = nil
+        self.matchedRoute = nil
+    }
 }
+
+extension ChannelHandlerContext: @unchecked @retroactive Sendable {}

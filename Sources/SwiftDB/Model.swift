@@ -6,6 +6,7 @@
 //
 import Foundation
 import PostgresNIO
+import SwiftWebCore
 
 public protocol Model: Codable, Sendable {
     static var schema: String { get }
@@ -15,7 +16,7 @@ public protocol Model: Codable, Sendable {
 extension Model {
     public func getId() throws -> Int {
         guard let id = self.id else {
-            throw ModelError.missingId
+            throw SwiftWebError(type: .preconditionFailed, reason: "Attempted to get ID from a model that has not been saved yet.")
         }
         return id
     }
@@ -37,14 +38,16 @@ extension Model {
         var bindings = PostgresBindings(capacity: properties.count)
         
         for property in properties {
-            guard let value = property.value else { throw ModelError.saveFailed }
+            guard let value = property.value else { 
+                throw SwiftWebError(type: .internalServerError, reason: "Failed to save model of type '\(Self.self)' because a property was unexpectedly nil.")
+            }
             try bindings.append(value)
         }
         
         let query = PostgresQuery(unsafeSQL: SQLString, binds: bindings)
 
         guard let row = try await db.query(query).collect().first else {
-            throw ModelError.saveFailed
+            throw SwiftWebError(type: .internalServerError, reason: "Failed to save model of type '\(Self.self)': Database did not return the saved row.")
         }
 
         let saved = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
@@ -58,7 +61,7 @@ extension Model {
     }
 
     public func destroy(on db: Database) async throws {
-        guard let id = self.id else { throw ModelError.missingId }
+        let id = try self.getId()
         try await Self.destroy(id: id, on: db)
     }
 
@@ -71,12 +74,12 @@ extension Model {
         try await db.cache.delete(key)
     }
 
-    public func update(on db: Database) async throws {
-        guard let id = self.id else { throw ModelError.missingId }
+    public mutating func update(on db: Database) async throws {
+        let id = try self.getId()
         try await self.update(id: id, on: db)
     }
 
-    public func update(id: Int, on db: Database) async throws {
+    public mutating func update(id: Int, on db: Database) async throws {
         let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
         
         let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
@@ -88,12 +91,14 @@ extension Model {
             }
         }).joined(separator: ", ")
         
-        let SQLString = "UPDATE \"\(Self.schema)\" SET (\(columnSQL)) = (\(placeholderSQL)) WHERE id = $\(properties.count + 1)"
+        let SQLString = "UPDATE \"\(Self.schema)\" SET (\(columnSQL)) = (\(placeholderSQL)) WHERE id = $\(properties.count + 1) RETURNING *"
         
         var bindings = PostgresBindings(capacity: properties.count + 1)
         
         for property in properties {
-            guard let value = property.value else { throw ModelError.saveFailed }
+            guard let value = property.value else { 
+                throw SwiftWebError(type: .internalServerError, reason: "Failed to update model of type '\(Self.self)' because a property was unexpectedly nil.") 
+            }
             try bindings.append(value)
         }
 
@@ -102,6 +107,8 @@ extension Model {
         let query = PostgresQuery(unsafeSQL: SQLString, binds: bindings)
 
         _ = try await db.query(query)
+
+        self.id = id
 
         let key: String = Self.cacheKey(id: id)
         try await db.cache.set(key, to: self)
@@ -132,7 +139,7 @@ extension Model {
         let decoder = PostgresDecoder()
         
         guard let row = try await db.query(query).collect().first else {
-            throw ModelError.notFound
+            throw SwiftWebError(type: .notFound, reason: "A model of type '\(Self.self)' with ID \(id) was not found.")
         }
 
         let model = try decoder.decode(Self.self, from: row.makeRandomAccess())
@@ -145,10 +152,4 @@ extension Model {
     private static func cacheKey(id: Int) -> String {
         return "\(Self.schema):\(id)"
     }
-}
-
-public enum ModelError: Error {
-    case notFound
-    case saveFailed
-    case missingId
 }

@@ -8,40 +8,31 @@ import NIO
 import NIOHTTP1
 import SwiftDB
 import SwiftView
+import Logging
 
-public protocol Responder: Sendable {
-    func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response
-}
-
-public final class Application: Responder {
+public final class Application: Sendable {
     public let router: Router
     public let db: Database
     public let views: Views
+    public let logger: Logger
     public let eventLoopGroup: EventLoopGroup
     
-    public init(router: Router, db: Database, views: Views, eventLoopGroup: EventLoopGroup) {
+    public init(router: Router, db: Database, views: Views, eventLoopGroup: EventLoopGroup, logger: Logger) {
         self.router = router
         self.db = db
         self.views = views
         self.eventLoopGroup = eventLoopGroup
-    }
-    
-    public func respond(to requestHead: HTTPRequestHead, body: ByteBuffer?) async -> Response {
-        if let (handler, params, query) = router.match(uri: requestHead.uri, method: requestHead.method) {
-            let request: Request = Request(head: requestHead, body: body, params: params, query: query, app: self)
-            do {
-                let response = try await handler(request)
-                return response
-            } catch {
-                return .html("<h1>Error!</h1><p>\(error)</p>")
-            }
-        } else {
-            return Response(status: .notFound)
-        }
+        self.logger = logger
     }
     
     public func run(port: Int = 4000) throws {
-        defer { try! self.eventLoopGroup.syncShutdownGracefully() }
+        defer { 
+            do {
+                try self.eventLoopGroup.syncShutdownGracefully()
+            } catch {
+                logger.critical("Failed to sync shutdown gracefully \(error)")
+            }
+        }
         
         let bootstrap = ServerBootstrap(group: eventLoopGroup)
             .serverChannelOption(ChannelOptions.backlog, value: 256)
@@ -49,16 +40,23 @@ public final class Application: Responder {
             .childChannelInitializer { channel in
                 
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
-                    channel.pipeline.addHandler(HTTPHandler(responder: self))
+                    channel.pipeline.addHandler(HTTPHandler(application: self))
                 }
             }
             .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(.maxMessagesPerRead, value: 16)
             .childChannelOption(.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
 
-        let channel = try! bootstrap.bind(host: "127.0.0.1", port: port).wait()
-        print(swiftweb: "Server running on \(channel.localAddress!)")
-
-        try! channel.closeFuture.wait()
+        do {
+            let channel = try bootstrap.bind(host: "0.0.0.0", port: port).wait()
+            if let localAddress = channel.localAddress, let host = localAddress.ipAddress, let port = localAddress.port {
+                logger.info("Server running on http://\(host):\(port)")
+            } else {
+                logger.warning("Server running, but could not determine local address")
+            }
+            try channel.closeFuture.wait()
+        } catch {
+            logger.critical("Failed to start server: \(error)")
+        }
     }
 }

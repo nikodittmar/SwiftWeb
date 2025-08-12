@@ -5,12 +5,7 @@
 //  Created by Niko Dittmar on 6/30/25.
 //
 import Foundation
-
-enum EvaluatorError: Error, Equatable {
-    case variableNotFound(keyPath: String)
-    case typeMismatch(expected: String, actual: String)
-    case notACollection(keyPath: String)
-}
+import SwiftWebCore
 
 enum Evaluator {
     
@@ -53,7 +48,7 @@ enum Evaluator {
                 let collection = try lookUp(keyPath: collectionName, in: context)
                 
                 guard let array = collection as? [Any] else {
-                    throw EvaluatorError.notACollection(keyPath: collectionName)
+                    throw SwiftWebError(type: .internalServerError, reason: "Type mismatch in view loop: Expected a collection for '\(collectionName)', but it was not an array.")
                 }
                 
                 for item in array {
@@ -74,13 +69,13 @@ enum Evaluator {
         for key in keys {
             if let dictionary = currentValue as? [String: Any] {
                 guard let value = dictionary[key] else {
-                    throw EvaluatorError.variableNotFound(keyPath: keyPath)
+                    throw SwiftWebError(type: .internalServerError, reason: "Variable not found in view context: '\(keyPath)'.")
                 }
                 currentValue = value
             } else if key == "count", let array = currentValue as? [Any] {
                 currentValue = array.count
             } else {
-                throw EvaluatorError.variableNotFound(keyPath: keyPath)
+                throw SwiftWebError(type: .internalServerError, reason: "Variable not found in view context: '\(keyPath)'.")
             }
         }
         
@@ -91,7 +86,7 @@ enum Evaluator {
         let value = try lookUp(keyPath: keyPath, in: context)
         
         guard let boolValue = value as? Bool else {
-            throw EvaluatorError.typeMismatch(expected: "Bool", actual: String(describing: value))
+            throw SwiftWebError(type: .internalServerError, reason: "Type mismatch in view condition: Expected Bool for '\(keyPath)', but got \(type(of: value)).")
         }
         
         return boolValue
@@ -100,7 +95,7 @@ enum Evaluator {
     private static func toDictionary(_ encodable: Encodable) throws -> [String: Any] {
         let data = try JSONEncoder().encode(encodable)
         guard let dictionary = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw EvaluatorError.typeMismatch(expected: "Dictionary", actual: String(describing: encodable))
+            throw SwiftWebError(type: .internalServerError, reason: "Failed to convert Encodable context to a dictionary for view rendering.")
         }
         return dictionary
     }

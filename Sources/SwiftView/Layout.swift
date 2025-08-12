@@ -5,7 +5,7 @@
 //  Created by Niko Dittmar on 8/10/25.
 //
 
-public class Layout {
+public final class Layout: Sendable {
     let name: String
     let layout: Layout?
 

@@ -9,6 +9,7 @@ import Foundation
 import SwiftView
 import SwiftDB
 import NIO
+import Logging
 
 struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
@@ -19,10 +20,13 @@ struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
     }
     
     func run() async throws {
-        print(swiftweb: "🚀 Starting Server...")
+        var logger = Logger(label: "SwiftWeb")
+        logger.logLevel = .debug
+    
+        logger.debug("Starting SwiftWeb server.")
         
-        do { try loadDotEnv(from: T.dotEnvPath) } catch {
-            print(swiftweb: "❌ Error loading .env file: \(error)")
+        do { try loadDotEnv(from: T.dotEnvPath, logger: logger) } catch {
+            logger.critical("Error loading .env file: \(error)")
             return
         }
 
@@ -36,11 +40,13 @@ struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
         
         let db = try await Database.connect(
             config: getDatabaseConfig(),
-            eventLoopGroup: eventLoopGroup
+            eventLoopGroup: eventLoopGroup,
+            logger: logger
         )
         
-        let application = Application(router: router, db: db, views: views, eventLoopGroup: eventLoopGroup)
+        let application = Application(router: router, db: db, views: views, eventLoopGroup: eventLoopGroup, logger: logger)
         
         try application.run(port: T.port)
     }
 }
+
