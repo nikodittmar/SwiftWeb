@@ -5,6 +5,7 @@
 //  Created by Niko Dittmar on 6/21/25.
 //
 import PostgresNIO
+import SwiftWebCore
 
 /// The main entry point for interacting with a PostgreSQL database.
 ///
@@ -15,9 +16,9 @@ public final class Database: Sendable {
     private let client: PostgresClient
     private let connectionTask: Task<Void, Never>
     public let logger: Logger
-    public let cache: Cache
+    public let cache: any Cache<String, any Model>
 
-    private init(client: PostgresClient, connectionTask: Task<Void, Never>, logger: Logger, cache: Cache) {
+    private init(client: PostgresClient, connectionTask: Task<Void, Never>, logger: Logger, cache: any Cache<String, any Model>) {
         self.client = client
         self.connectionTask = connectionTask
         self.logger = logger
@@ -239,7 +240,7 @@ public struct DatabaseConfig: Sendable {
     /// The duration to wait before a connection attempt is considered timed out.
     public var connectionTimeout: Duration
     /// The cache client to use for caching database query results. Defaults to an ``InMemoryCache``.
-    public var cache: Cache
+    public var cache: any Cache<String, any Model>
 
     public init(
         host: String = "localhost", 
@@ -249,7 +250,7 @@ public struct DatabaseConfig: Sendable {
         database: String,
         tls: PostgresClient.Configuration.TLS = .disable,
         connectionTimeout: Duration = .seconds(5),
-        cache: Cache = InMemoryCache()
+        cache: any Cache<String, any Model> = InMemoryCache<String, any Model>()
     ) {
         self.host = host
         self.port = port

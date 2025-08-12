@@ -10,7 +10,7 @@
 /// Use this class when you need to explicitly disable caching for a ``Database`` instance. All method calls
 /// on this class are empty and have no side effects, providing a "null object" that fulfills the ``Cache``
 /// protocol without storing any data.
-public final class DisabledCache: Cache {
+public final class DisabledCache<Value: Sendable>: Cache {
 
     /// Creates a new instance of the disabled cache.
     public init() {}
@@ -19,7 +19,7 @@ public final class DisabledCache: Cache {
     ///
     /// - Parameter key: The key for the model. This parameter is ignored.
     /// - Returns: Always returns `nil`.
-    public func get<T>(_ key: String) async throws -> T? where T : Model {
+    public func get(_ key: String) async throws -> Value? {
         return nil
     }
 
@@ -28,7 +28,7 @@ public final class DisabledCache: Cache {
     /// - Parameters:
     ///   - key: The key for the model. This parameter is ignored.
     ///   - value: The model to store. This parameter is ignored.
-    public func set<T>(_ key: String, to value: T) async throws where T : Model {
+    public func set(_ key: String, to value: Value) async throws {
         // This cache does nothing, so the method is empty.
     }
 

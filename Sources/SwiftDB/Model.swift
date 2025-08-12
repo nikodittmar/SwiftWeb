@@ -127,7 +127,7 @@ extension Model {
     
     public static func find(id: Int, on db: Database) async throws -> Self {
         let key: String = Self.cacheKey(id: id)
-        if let model: Self = try? await db.cache.get(key) {
+        if let model: Self = try? await db.cache.get(key) as? Self {
             return model
         }
 

@@ -6,6 +6,7 @@
 //
 
 import Testing
+@testable import SwiftWeb
 @testable import SwiftDB
 
 @Suite struct InMemoryCacheTests {

@@ -66,6 +66,10 @@ let package = Package(
         .testTarget(
             name: "SwiftViewTests",
             dependencies: ["SwiftView"]
+        ),
+        .testTarget( 
+            name: "SwiftWebCoreTests",
+            dependencies: ["SwiftWebCore"]
         )
     ]
 )
