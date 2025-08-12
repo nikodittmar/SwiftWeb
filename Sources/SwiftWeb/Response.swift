@@ -89,4 +89,18 @@ public struct Response: Sendable {
 
         return headers
     }
+
+    public func withCookie(_ cookie: Cookie) -> Response {
+        var newResponse = self
+        newResponse.headers.add(name: "Set-Cookie", value: cookie.serialized())
+        return newResponse
+    }
+
+    public func withCookies(_ cookies: [Cookie]) -> Response {
+        var newResponse = self
+        for cookie in cookies {
+            newResponse.headers.add(name: "Set-Cookie", value: cookie.serialized())
+        }
+        return newResponse
+    }
 }

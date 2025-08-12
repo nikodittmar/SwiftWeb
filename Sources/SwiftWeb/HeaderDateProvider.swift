@@ -11,7 +11,20 @@ import Foundation
 internal final class HeaderDateProvider: Sendable {
     private let mutex = Mutex((cachedDateString: "", lastUpdated: Date.distantPast))
 
-    private static let formatStyle: Date.VerbatimFormatStyle = Date.VerbatimFormatStyle(
+    internal func get() -> String {
+        return mutex.withLock { state in 
+            if state.lastUpdated.timeIntervalSinceNow < -1 {
+                let now = Date.now 
+                state.cachedDateString = now.formatted(DateFormat.RFC1123)
+                state.lastUpdated = now
+            }
+            return state.cachedDateString
+        }
+    }   
+}
+
+public enum DateFormat {
+    public static let RFC1123 = Date.VerbatimFormatStyle(
         format: """
         \(weekday: .abbreviated), \
         \(day: .twoDigits) \
@@ -24,15 +37,4 @@ internal final class HeaderDateProvider: Sendable {
         timeZone: .gmt,
         calendar: Calendar(identifier: .gregorian)
     )
-
-    internal func get() -> String {
-        return mutex.withLock { state in 
-            if state.lastUpdated.timeIntervalSinceNow < -1 {
-                let now = Date.now 
-                state.cachedDateString = now.formatted(Self.formatStyle)
-                state.lastUpdated = now
-            }
-            return state.cachedDateString
-        }
-    }   
 }

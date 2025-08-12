@@ -9,6 +9,7 @@ import NIOHTTP1
 import SwiftDB
 import SwiftView
 import Logging
+import Foundation
 
 public final class Application: Sendable {
     public let router: Router
@@ -16,13 +17,15 @@ public final class Application: Sendable {
     public let views: Views
     public let logger: Logger
     public let eventLoopGroup: EventLoopGroup
+    public let publicDirectory: URL
     
-    public init(router: Router, db: Database, views: Views, eventLoopGroup: EventLoopGroup, logger: Logger) {
-        self.router = router
-        self.db = db
-        self.views = views
-        self.eventLoopGroup = eventLoopGroup
-        self.logger = logger
+    public init(config: ApplicationConfig) {
+        self.router = config.router
+        self.db = config.database
+        self.views = config.views
+        self.eventLoopGroup = config.eventLoopGroup
+        self.logger = config.logger
+        self.publicDirectory = config.publicDirectory
     }
     
     public func run(port: Int = 4000) throws {
@@ -59,4 +62,13 @@ public final class Application: Sendable {
             logger.critical("Failed to start server: \(error)")
         }
     }
+}
+
+public struct ApplicationConfig {
+    let router: Router
+    let database: Database
+    let views: Views
+    let eventLoopGroup: EventLoopGroup
+    let publicDirectory: URL
+    let logger: Logger
 }

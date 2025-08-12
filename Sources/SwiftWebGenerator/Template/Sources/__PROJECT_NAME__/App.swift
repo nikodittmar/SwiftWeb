@@ -14,12 +14,9 @@ struct AppConfig: SwiftWebConfig {
 
     static let migrations: [Migration.Type] = []
     
-    static let viewsDirectory: URL = {
-        guard let url = Bundle.module.url(forResource: "Views", withExtension: nil) else {
-            fatalError("Views directory not found in bundle. Check your Package.swift resources.")
-        }
-        return url
-    }()
+    public static let viewsDirectory: URL = Bundle.module.url(forResource: "Views", withExtension: nil)!
+    
+    public static let publicDirectory: URL = Bundle.module.url(forResource: "Public", withExtension: nil)!
     
     static func configureRoutes() -> Router { return routes() }
     

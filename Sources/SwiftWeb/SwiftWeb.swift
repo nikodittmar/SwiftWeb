@@ -12,22 +12,27 @@ public protocol SwiftWebConfig {
     static var projectName: String { get }
     static var migrations: [Migration.Type] { get }
     static var port: Int { get }
-    static func configureRoutes() -> Router
+
     static var viewsDirectory: URL { get }
+    static var publicDirectory: URL { get }
+
     static var dotEnvPath: URL { get }
     static var maintenanceDBName: String { get }
+
+    static func configureRoutes() -> Router
 }
 
 extension SwiftWebConfig {
     public static var dotEnvPath: URL {
         URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/.env")
     }
+
     public static var maintenanceDBName: String {
         return "postgres"
     }
 }
 
-@available(macOS 13, *)
+@available(macOS 15, *)
 public struct SwiftWeb<T: SwiftWebConfig>: AsyncParsableCommand {
     public static var configuration: CommandConfiguration {
         CommandConfiguration(

@@ -43,8 +43,17 @@ struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
             eventLoopGroup: eventLoopGroup,
             logger: logger
         )
+
+        let applicationConfig = ApplicationConfig(
+            router: router, 
+            database: db, 
+            views: views, 
+            eventLoopGroup: eventLoopGroup, 
+            publicDirectory: T.publicDirectory, 
+            logger: logger
+        )
         
-        let application = Application(router: router, db: db, views: views, eventLoopGroup: eventLoopGroup, logger: logger)
+        let application = Application(config: applicationConfig)
         
         try application.run(port: T.port)
     }

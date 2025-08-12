@@ -18,7 +18,8 @@ let package = Package(
                 .product(name: "SwiftView", package: "SwiftWeb")
             ],
             resources: [
-                .copy("Views")
+                .copy("Views"),
+                .copy("Public")
             ]
         ),
     ]
