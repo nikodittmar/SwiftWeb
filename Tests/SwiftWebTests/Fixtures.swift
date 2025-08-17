@@ -48,11 +48,14 @@ enum SwiftWebTestFixtures {
         let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
 
-        let viewsDirectory = temporaryDirectory.appendingPathComponent("views", isDirectory: true)
+        let viewsDirectory = temporaryDirectory.appendingPathComponent("Views", isDirectory: true)
         try FileManager.default.createDirectory(at: viewsDirectory, withIntermediateDirectories: false)
 
-        let publicDirectory = temporaryDirectory.appendingPathComponent("public", isDirectory: true)
-        try FileManager.default.createDirectory(at: viewsDirectory, withIntermediateDirectories: false)
+        let errorView = temporaryDirectory.appendingPathComponent("error.swift.html", isDirectory: false)
+        try "<h1>ERROR</h1>".write(to: errorView, atomically: true, encoding: .utf8)
+
+        let publicDirectory = temporaryDirectory.appendingPathComponent("Public", isDirectory: true)
+        try FileManager.default.createDirectory(at: publicDirectory, withIntermediateDirectories: false)
 
         let views = Views(viewsDirectory: viewsDirectory)
 

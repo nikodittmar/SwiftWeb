@@ -48,6 +48,18 @@ public struct Request: Sendable {
         return value
     }
 
+    public func get<T: LosslessStringConvertible>(query: String, as type: T.Type = T.self) throws -> T {
+        guard let stringValue = self.query[query] else {
+            throw SwiftWebError(type: .internalServerError, reason: "Query parameter '\(query)' not found. This indicates a server-side configuration error.")
+        }
+
+        guard let value = T(stringValue) else {
+            throw SwiftWebError(type: .badRequest, reason: "Query parameter '\(query)' with value '\(stringValue)' could not be converted to type '\(T.self)'.")
+        }
+
+        return value
+    }
+
     public func get<T: Decodable>(_ decodable: T.Type = T.self, encoding: Encoding) throws -> T {
         guard let body = body else {
             throw SwiftWebError(type: .badRequest, reason: "Request body is empty, cannot decode '\(T.self)'.")

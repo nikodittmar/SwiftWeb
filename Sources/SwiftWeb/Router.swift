@@ -109,13 +109,9 @@ public final class Router: Sendable {
              
         var params: [String: String] = [:]
 
-        var collectedMiddleware: [Middleware] = self.globalMiddleware
-
         let pathComponents: [String] = uriComponents.path.split(separator: "/").map(String.init)
         
         var current = root
-
-        collectedMiddleware.append(contentsOf: current.middleware)
 
         for component in pathComponents {
             if let child = current.children[component] {
@@ -132,7 +128,16 @@ public final class Router: Sendable {
                     middleware: globalMiddleware
                 )
             }
-            collectedMiddleware.append(contentsOf: current.middleware)
+        }
+        
+        if current.handlers.isEmpty {
+            return MatchedRoute(
+                head: head,
+                handler: { req in throw SwiftWebError(type: .notFound, reason: "No route found for path '\(uriComponents.path)'.") },
+                params: [:],
+                query: query,
+                middleware: globalMiddleware
+            )
         }
         
         guard let handler = current.handlers[method.rawValue] else {
@@ -145,6 +150,7 @@ public final class Router: Sendable {
             )
         }
 
+        let collectedMiddleware = self.globalMiddleware + current.middleware
         return MatchedRoute(head: head, handler: handler, params: params, query: query, middleware: collectedMiddleware)
     }
 }
@@ -205,7 +211,7 @@ public final class RouterBuilder {
             }
         }
 
-        current.middleware.append(contentsOf: self.middlewareStack.last ?? [])
+        current.middleware = self.middlewareStack.flatMap { $0 }
         
         if current.handlers[method.rawValue] != nil {
             preconditionFailure("Duplicate route: '\(method.rawValue) \(path)' has already been defined.")

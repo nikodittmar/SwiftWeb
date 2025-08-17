@@ -29,10 +29,16 @@ public struct Response: Sendable {
     }
 
     public static func error(_ error: Error, name: String = "error", on app: Application, version: HTTPVersion = .http1_1) -> Response {
-        if let swiftWebError = error as? SwiftWebError, let errorHTML = try? app.views.render(name, with: swiftWebError.context)  {
-            return .html(errorHTML, status: swiftWebError.type.status, version: version)
+        print(error)
+        if let swiftWebError = error as? SwiftWebError {
+            do {
+                let errorHTML = try app.views.render(name, with: swiftWebError.context)
+                return .html(errorHTML, status: swiftWebError.type.status, version: version)
+            } catch {
+                return .html("<h1>\(swiftWebError.type.status)</h1><p>\(swiftWebError.type.defaultMessage)</p>", status: swiftWebError.type.status, version: version)
+            }
         } else {
-            return .html("<h1>An unexpected error occurred</h1><p>Additionally, the error view could not be rendered.</p>", status: .internalServerError, version: version)
+            return .html("<h1>An unexpected error occurred</h1>", status: .internalServerError, version: version)
         }
     }
     
