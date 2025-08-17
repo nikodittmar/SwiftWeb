@@ -7,24 +7,45 @@
 import Foundation
 import NIOHTTP1
 import SwiftWebCore
+import NIO
 
 public typealias Handler = @Sendable (_ req: Request) async throws -> Response
 
 public struct MatchedRoute: Sendable {
+    let head: HTTPRequestHead
     let handler: Handler
-    let pathParameters: [String: String]
-    let queryParameters: [String: String]
+    let params: [String: String]
+    let query: [String: String]
+    let middleware: [Middleware]
+
+    public func execute(body: ByteBuffer?, app: Application) async -> Response {
+        let request = Request(head: head, body: body, params: params, query: query, app: app)
+
+        let responder = self.middleware.reversed().reduce(self.handler) { (nextHandler, middleware) in
+            return { req in
+                try await middleware.handle(req: req, next: nextHandler)
+            }
+        }
+
+        do {
+            return try await responder(request)
+        } catch {
+            return .error(error, on: app, version: head.version)
+        }
+    }
 }
 
 private final class RouteNode: Sendable {
     let children: [String: RouteNode]
     let handlers: [String: Handler]
     let parameter: (name: String, node: RouteNode)?
+    let middleware: [Middleware]
     
-    init(children: [String:RouteNode], handlers: [String: Handler], parameter: (name: String, node: RouteNode)?) {
+    init(children: [String:RouteNode], handlers: [String: Handler], parameter: (name: String, node: RouteNode)?, middleware: [Middleware]) {
         self.children = children
         self.handlers = handlers
         self.parameter = parameter
+        self.middleware = middleware
     }
 }
 
@@ -32,13 +53,17 @@ private final class MutableRouteNode {
     var children: [String: MutableRouteNode] = [:]
     var handlers: [String: Handler] = [:]
     var parameter: (name: String, node: MutableRouteNode)?
+    var middleware: [Middleware] = []
 }
 
 public final class Router: Sendable {
     private let root: RouteNode
+
+    private let globalMiddleware: [Middleware]
     
-    fileprivate init(root: RouteNode) {
+    fileprivate init(root: RouteNode, globalMiddleware: [Middleware]) {
         self.root = root
+        self.globalMiddleware = globalMiddleware
     }
     
     public func printRoutes() {
@@ -64,9 +89,18 @@ public final class Router: Sendable {
     
     }
     
-    public func match(uri: String, method: HTTPMethod) throws -> MatchedRoute {
+    public func match(head: HTTPRequestHead) -> MatchedRoute {
+        let uri = head.uri
+        let method = head.method
+
         guard let uriComponents = URLComponents(string: uri) else {
-            throw SwiftWebError(type: .badRequest, reason: "The provided URI string '\(uri)' is malformed and could not be parsed.")
+            return MatchedRoute(
+                head: head, 
+                handler: { req in throw SwiftWebError(type: .badRequest, reason: "The provided URI string '\(uri)' is malformed and could not be parsed.") }, 
+                params: [:], 
+                query: [:], 
+                middleware: globalMiddleware
+            )
         }
             
         let query: [String: String] = uriComponents.queryItems?.reduce(into: [:]) { result, item in
@@ -75,9 +109,13 @@ public final class Router: Sendable {
              
         var params: [String: String] = [:]
 
+        var collectedMiddleware: [Middleware] = self.globalMiddleware
+
         let pathComponents: [String] = uriComponents.path.split(separator: "/").map(String.init)
         
         var current = root
+
+        collectedMiddleware.append(contentsOf: current.middleware)
 
         for component in pathComponents {
             if let child = current.children[component] {
@@ -86,27 +124,45 @@ public final class Router: Sendable {
                 current = parameter.node
                 params[parameter.name] = component
             } else {
-                throw SwiftWebError(type: .notFound, reason: "No route found for path '\(uriComponents.path)'. Failed to match segment '\(component)'.")
+                return MatchedRoute(
+                    head: head, 
+                    handler: { req in throw SwiftWebError(type: .notFound, reason: "No route found for path '\(uriComponents.path)'. Failed to match segment '\(component)'.") }, 
+                    params: [:], 
+                    query: query, 
+                    middleware: globalMiddleware
+                )
             }
+            collectedMiddleware.append(contentsOf: current.middleware)
         }
         
         guard let handler = current.handlers[method.rawValue] else {
-            throw SwiftWebError(type: .methodNotAllowed, reason: "A route exists for path '\(uriComponents.path)', but not for method '\(method.rawValue)'.")
+            return MatchedRoute(
+                head: head, 
+                handler: { req in throw SwiftWebError(type: .methodNotAllowed, reason: "A route exists for path '\(uriComponents.path)', but not for method '\(method.rawValue)'.") }, 
+                params: [:], 
+                query: query, 
+                middleware: globalMiddleware
+            )
         }
 
-        return MatchedRoute(handler: handler, pathParameters: params, queryParameters: query)
+        return MatchedRoute(head: head, handler: handler, params: params, query: query, middleware: collectedMiddleware)
     }
 }
 
 public final class RouterBuilder {
-    public init() {}
+    public init(globalMiddleware: [Middleware] = []) {
+        self.globalMiddleware = globalMiddleware
+    }
+
+    private let globalMiddleware: [Middleware]
     
     private var root: MutableRouteNode = MutableRouteNode()
-    private var pathPrefix: String = ""
+    private var middlewareStack: [[Middleware]] = [[]]
+    private var pathPrefixStack: [String] = []
     
     private func addRoute(path: String, method: HTTPMethod, handler: @escaping Handler) {
-        let path: String = pathPrefix + path
-        let components: [String] = path.split(separator: "/").map(String.init)
+        let fullPath = (pathPrefixStack + [path]).joined()
+        let components: [String] = fullPath.split(separator: "/").map(String.init)
         
         var parameters: Set<String> = []
         
@@ -148,11 +204,17 @@ public final class RouterBuilder {
                 }
             }
         }
+
+        current.middleware.append(contentsOf: self.middlewareStack.last ?? [])
         
         if current.handlers[method.rawValue] != nil {
             preconditionFailure("Duplicate route: '\(method.rawValue) \(path)' has already been defined.")
         }
         current.handlers[method.rawValue] = handler
+    }
+
+    public func use(_ middleware: Middleware) {
+        self.middlewareStack[self.middlewareStack.count - 1].append(middleware)
     }
     
     public func get(_ path: String, to handler: @escaping Handler) {
@@ -176,75 +238,54 @@ public final class RouterBuilder {
     }
     
     public func namespace(_ prefix: String, _ closure: (RouterBuilder) -> Void) {
-        pathPrefix = prefix + "/"
+        pathPrefixStack.append(prefix)
         closure(self)
-        pathPrefix = ""
+        pathPrefixStack.removeLast()
     }
     
-    public enum ResourceAction {
-        case index, show, new, create, edit, update, delete
-    }
-    
-    public func resources<T: Controller>(
+    public func resources<T: ResourcefulController>(
         _ path: String,
         for: T.Type,
-        only: Set<ResourceAction>? = nil,
-        except: Set<ResourceAction>? = nil,
         parameter: String = "id"
     ) {
-        if (only != nil && except != nil) {
-            preconditionFailure("Cannot specify both only and except for resources on '\(path)'")
-        }
-        
-        var actions: Set<ResourceAction> = []
-        let allActions: Set<ResourceAction> = [ .index, .show, .new, .create, .edit, .update, .delete ]
-        
-        if let only = only {
-            actions = Set(only)
-        } else if let except = except {
-            actions = allActions.subtracting(except)
-        } else {
-            actions = allActions
-        }
-        
         let controller = T()
         
-        if actions.contains(.index) { get(path, to: controller.index) }
-        if actions.contains(.show) { get("\(path)/:\(parameter)", to: controller.show) }
-        if actions.contains(.new) { get("\(path)/new", to: controller.new) }
-        if actions.contains(.create) { post(path, to: controller.create) }
-        if actions.contains(.edit) { get("\(path)/:\(parameter)/edit", to: controller.update) }
-        if actions.contains(.update) {
-            patch("\(path)/:\(parameter)", to: controller.update)
-            put("\(path)/:\(parameter)", to: controller.update)
-        }
-        if actions.contains(.delete) { delete("\(path)/:\(parameter)", to: controller.destroy) }
+        get(path, to: controller.index)
+        get("\(path)/:\(parameter)", to: controller.show)
+        get("\(path)/new", to: controller.new)
+        post(path, to: controller.create)
+        get("\(path)/:\(parameter)/edit", to: controller.edit)
+        patch("\(path)/:\(parameter)", to: controller.update)
+        put("\(path)/:\(parameter)", to: controller.update)
+        delete("\(path)/:\(parameter)", to: controller.destroy)
     }
     
-    public func resources<T: Controller>(
+    public func resources<T: ResourcefulController>(
         _ path: String,
         for: T.Type,
-        only: Set<ResourceAction>? = nil,
-        except: Set<ResourceAction>? = nil,
         parameter: String = "id",
         _ nesting: (RouterBuilder) -> Void
     ) {
-        resources(path, for: T.self, only: only, except: except, parameter: parameter)
-        pathPrefix = "\(path)/:\(parameter)/"
+        resources(path, for: T.self, parameter: parameter)
+        pathPrefixStack.append("\(path)/:\(parameter)/")
         nesting(self)
-        pathPrefix = ""
+        pathPrefixStack.removeLast()
+    }
+
+    public func group(_ middleware: Middleware..., routes: (RouterBuilder) -> Void) {
+        self.middlewareStack.append(middleware)
+        routes(self)
+        self.middlewareStack.removeLast()
     }
     
     public func build() -> Router {
-        return Router(root: convertNode(self.root))
+        return Router(root: convertNode(self.root), globalMiddleware: globalMiddleware)
     }
     
     private func convertNode(_ node: MutableRouteNode) -> RouteNode {
-        if let parameter = node.parameter {
-            return RouteNode(children: convertChildren(node.children), handlers: node.handlers, parameter: (name: parameter.name, node: convertNode(parameter.node)))
-        } else {
-            return RouteNode(children: convertChildren(node.children), handlers: node.handlers, parameter: nil)
-        }
+        let children = convertChildren(node.children)
+        let parameter = node.parameter.map { (name: $0.name, node: convertNode($0.node)) }
+        return RouteNode(children: children, handlers: node.handlers, parameter: parameter, middleware: node.middleware)
     }
     
     private func convertChildren(_ mutableChildren: [String : MutableRouteNode]) -> [String: RouteNode] {

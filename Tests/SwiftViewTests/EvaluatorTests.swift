@@ -6,6 +6,7 @@
 //
 import Testing
 @testable import SwiftView
+import SwiftWebCore
 
 @Suite struct EvaluatorTests {
     
@@ -275,7 +276,7 @@ import Testing
         
         struct Context: Codable {}
                     
-        #expect(throws: EvaluatorError.self) {
+        #expect(throws: SwiftWebError.self) {
             try Evaluator.evaluate(syntaxTree: syntaxTree, context: Context())
         }
     }
@@ -299,7 +300,7 @@ import Testing
             let isLoggedIn: String
         }
         
-        #expect(throws: EvaluatorError.self) {
+        #expect(throws: SwiftWebError.self) {
             try Evaluator.evaluate(syntaxTree: syntaxTree, context: Context(isLoggedIn: "NOT A BOOLEAN"))
         }
     }
@@ -325,7 +326,7 @@ import Testing
         
         struct Context: Codable {}
                     
-        #expect(throws: EvaluatorError.self) {
+        #expect(throws: SwiftWebError.self) {
             try Evaluator.evaluate(syntaxTree: syntaxTree, context: Context())
         }
     }
@@ -383,7 +384,7 @@ import Testing
         
         struct Context: Codable {}
                     
-        #expect(throws: EvaluatorError.self) {
+        #expect(throws: SwiftWebError.self) {
             try Evaluator.evaluate(syntaxTree: syntaxTree, context: Context())
         }
     }

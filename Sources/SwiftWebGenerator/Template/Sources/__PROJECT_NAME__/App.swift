@@ -19,6 +19,8 @@ struct AppConfig: SwiftWebConfig {
     public static let publicDirectory: URL = Bundle.module.url(forResource: "Public", withExtension: nil)!
     
     static func configureRoutes() -> Router { return routes() }
+
+    static func configureMiddleware() -> [Middleware] { return middleware() }
     
     static let port: Int = 8080
 }

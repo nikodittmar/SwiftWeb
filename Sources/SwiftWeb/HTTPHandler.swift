@@ -46,21 +46,9 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
         
         switch reqPart {
         case .head(let head):
-
-            #if SWIFTWEB_LOGGING_ENABLED
-            application.logger.info("Started \(head.method.rawValue) \(head.uri)")
-            #endif
-
             self.requestHead = head
             self.state.requestReceived()
-
-            do {
-                self.matchedRoute = try self.application.router.match(uri: head.uri, method: head.method)
-            } catch {
-                self.state.requestComplete()
-                self.handleError(error, context: context, version: head.version)
-            }
-
+            self.matchedRoute = self.application.router.match(head: head)
         case .body(var buffer):
             if self.body == nil {
                 self.body = buffer
@@ -74,53 +62,29 @@ public final class HTTPHandler: ChannelInboundHandler, @unchecked Sendable {
 
             self.state.requestComplete()
 
-            let application = self.application
-
-            guard let requestHead = self.requestHead, let matchedRoute = self.matchedRoute else {
-                self.handleError(SwiftWebError(type: .internalServerError, reason: "HTTPHandler failed to process request head or match route before request end"), context: context, version: .http1_1)
+            guard let matchedRoute = self.matchedRoute else {
+                self.handleError(SwiftWebError(type: .internalServerError, reason: "HTTPHandler failed to match route before request end"), context: context, version: .http1_1)
                 return
             }
 
             let promise = context.eventLoop.makePromise(of: Response.self)
 
-            let request: Request = Request(head: requestHead, body: self.body, params: matchedRoute.pathParameters, query: matchedRoute.queryParameters, app: application)
-
             promise.completeWithTask {
-                return try await matchedRoute.handler(request)
+                return await matchedRoute.execute(body: self.body, app: self.application)
             }
 
             promise.futureResult.whenSuccess { response in
-                self.respond(with: response, context: context, version: requestHead.version)
-            }
-
-            promise.futureResult.whenFailure { error in
-                self.handleError(error, context: context, version: requestHead.version)
-            }            
+                self.respond(with: response, context: context)
+            }          
         }
     }
 
     private func handleError(_ error: Error, context: ChannelHandlerContext, version: HTTPVersion) {
-        #if SWIFTWEB_LOGGING_ENABLED
-        if let swiftWebError = error as? SwiftWebError {
-            application.logger.error("Completed with error \(swiftWebError.type.status.code) \(swiftWebError.type.status.reasonPhrase) reason: \(swiftWebError.reason)")
-        } else {
-            application.logger.error("Completed with unknown error \(error.localizedDescription)")
-        }
-        #endif
-
-        self.respond(with: .error(error, on: application), context: context, version: version)
+        self.respond(with: .error(error, on: application, version: version), context: context)
     }
 
-    private func respond(with response: Response, context: ChannelHandlerContext, version: HTTPVersion) {
-        #if SWIFTWEB_LOGGING_ENABLED
-        if let requestHead = self.requestHead {
-            application.logger.info("Completed \(response.status.code) \(response.status.reasonPhrase) for \(requestHead.method.rawValue) \(requestHead.uri)")
-        } else {
-            application.logger.warning("Completed \(response.status.code) \(response.status.reasonPhrase) for an unknown URI and method")
-        }
-        #endif
-
-        let head = HTTPResponseHead(version: version, status: response.status, headers: response.headers)
+    private func respond(with response: Response, context: ChannelHandlerContext) {
+        let head = HTTPResponseHead(version: response.version, status: response.status, headers: response.headers)
 
         context.write(self.wrapOutboundOut(.head(head)), promise: nil)
 

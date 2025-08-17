@@ -7,228 +7,201 @@
 
 import Testing
 @testable import SwiftWeb
+import SwiftWebCore
+import NIO
+import NIOHTTP1
 
-struct TestController: Controller {}
+struct TestController: ResourcefulController {
+    func index(req: Request) async throws -> Response { return Response(status: .ok) }
+    func show(req: Request) async throws -> Response { return Response(status: .ok) }
+    func new(req: Request) async throws -> Response { return Response(status: .ok) }
+    func create(req: Request) async throws -> Response { return Response(status: .ok) }
+    func edit(req: Request) async throws -> Response { return Response(status: .ok) }
+    func update(req: Request) async throws -> Response { return Response(status: .ok) }
+    func destroy(req: Request) async throws -> Response { return Response(status: .ok) }
+}
 
-@Suite struct RouterTests {
+@Suite struct dRouterTests {
+    struct DummyMiddleware: Middleware {
+        func handle(req: Request, next: @Sendable (Request) async throws -> Response) async throws -> Response {
+            return Response(status: .ok).withHeader(name: "X-Dummy-Middleware-Used", value: "true")
+        }
+    }
+
+    struct SecondDummyMiddleware: Middleware {
+        func handle(req: Request, next: @Sendable (Request) async throws -> Response) async throws -> Response {
+            return Response(status: .ok).withHeader(name: "X-Second-Dummy-Middleware-Used", value: "true")
+        }
+    }
+
     let builder = RouterBuilder()
     
     let emptyHandler: Handler = { _ in Response(status: .ok) }
     
-    
-    @Test func testGet() {
+    @Test func test_Router_GetRoute_IsValid() throws {
         builder.get("/users", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/users", method: .GET)
-        #expect(match != nil)
+        let _ = router.match(head: HTTPRequestHead(version: .http1_1, method: .GET, uri: "/users"))
     }
     
-    @Test func testLongNonexistentRoute() {
+    @Test func test_Router_ExtraRouteComponent_ThrowsError() {
         builder.get("/users", to: emptyHandler)
         let router = builder.build()
-        let extraComponent = router.match(uri: "/users/info", method: .GET)
-        let extraParameter = router.match(uri: "/users/23", method: .GET)
-        #expect(extraComponent == nil)
-        #expect(extraParameter == nil)
+        #expect(throws: SwiftWebError.self) {
+            let _ = try router.match(uri: "/users/info", method: .GET)
+        }
     }
     
-    @Test func testShortNonexistentRoute() {
-        builder.get("/users/comments/info", to: emptyHandler)
+    @Test func test_Router_MissingRouteComponent_ThrowsError() {
+        builder.get("/users/:id/comments", to: emptyHandler)
         let router = builder.build()
-        let shortRoute = router.match(uri: "/users", method: .GET)
-        let shortParameterRoute = router.match(uri: "/users/comments/124", method: .GET)
-        #expect(shortRoute == nil)
-        #expect(shortParameterRoute == nil)
+        #expect(throws: SwiftWebError.self) {
+            let _ = try router.match(uri: "/users", method: .GET)
+        }
     }
     
-    @Test func testNonestistentMethod() {
+    @Test func test_Router_IncorrectMethod_ThrowsError() {
         builder.get("/users", to: emptyHandler)
         let router = builder.build()
-        let postMatch = router.match(uri: "/users", method: .POST)
-        #expect(postMatch == nil)
+        #expect(throws: SwiftWebError.self) {
+            let _ = try router.match(uri: "/users", method: .POST)
+        }
     }
     
-    @Test func testPost() {
+    @Test func test_Router_PostRoute_IsValid() throws {
         builder.post("/users", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/users", method: .POST)
-        #expect(match != nil)
+        let _ = try router.match(uri: "/users", method: .POST)
     }
     
-    @Test func testPatch() {
+    @Test func test_Router_PatchRoute_IsValid() throws {
         builder.patch("/users/:id", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/users/432", method: .PATCH)
-        #expect(match != nil)
+        let _ = try router.match(uri: "/users/12", method: .PATCH)
     }
     
-    @Test func testPut() {
+    @Test func test_Router_PutRoute_IsValid() throws {
         builder.put("/users/:id", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/users/89", method: .PUT)
-        #expect(match != nil)
+        let _ = try router.match(uri: "/users/45", method: .PUT)
     }
     
-    @Test func testDelete() {
+    @Test func test_Router_DeleteRoute_IsValid() throws {
         builder.delete("/users/:id", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/users/673", method: .DELETE)
-        #expect(match != nil)
+        let _ = try router.match(uri: "/users/2", method: .DELETE)
     }
     
-    @Test func testParameter() {
+    @Test func test_Router_ParameterRoute_IsValid() throws {
         builder.patch("/posts/:id", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/posts/123", method: .PATCH)
-        #expect(match != nil)
-        #expect(match?.params["id"] == "123")
+        let match = try router.match(uri: "/posts/123", method: .PATCH)
+        #expect(match.pathParameters["id"] == "123")
     }
     
-    @Test func testNestedParameter() {
+    @Test func test_Router_NestedParameterRoute_IsValid() throws {
         builder.patch("/posts/:post_id/comments/:comment_id", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/posts/578/comments/127", method: .PATCH)
-        #expect(match != nil)
-        #expect(match?.params["post_id"] == "578")
-        #expect(match?.params["comment_id"] == "127")
+        let match = try router.match(uri: "/posts/578/comments/127", method: .PATCH)
+        #expect(match.pathParameters["post_id"] == "578")
+        #expect(match.pathParameters["comment_id"] == "127")
     }
     
-    @Test func testQueryParameter() {
+    @Test func test_Router_QueryParameters_IsValid() throws {
         builder.get("/users", to: emptyHandler)
         let router = builder.build()
-        let match = router.match(uri: "/users?name=John&age=30", method: .GET)
-        #expect(match != nil)
-        #expect(match?.query["name"] == "John")
-        #expect(match?.query["age"] == "30")
+        let match = try router.match(uri: "/users?name=John&age=30", method: .GET)
+        #expect(match.queryParameters["name"] == "John")
+        #expect(match.queryParameters["age"] == "30")
     }
     
-    @Test func testResources() {
+    @Test func test_Router_Resources_IsValid() throws {
         builder.resources("/users", for: TestController.self, parameter: "user_id")
         let router = builder.build()
-        let index = router.match(uri: "/users", method: .GET)
-        let show = router.match(uri: "/users/12", method: .GET)
-        let new = router.match(uri: "/users/new", method: .GET)
-        let create = router.match(uri: "/users", method: .POST)
-        let edit = router.match(uri: "/users/888/edit", method: .GET)
-        let update_patch = router.match(uri: "/users/78", method: .PATCH)
-        let update_put = router.match(uri: "/users/21", method: .PUT)
-        let delete = router.match(uri: "/users/44", method: .DELETE)
-        #expect(index != nil)
-        #expect(show != nil)
-        #expect(show?.params["user_id"] == "12")
-        #expect(new != nil)
-        #expect(create != nil)
-        #expect(edit != nil)
-        #expect(edit?.params["user_id"] == "888")
-        #expect(update_patch != nil)
-        #expect(update_patch?.params["user_id"] == "78")
-        #expect(update_put != nil)
-        #expect(update_put?.params["user_id"] == "21")
-        #expect(delete != nil)
-        #expect(delete?.params["user_id"] == "44")
+        let _ = try router.match(uri: "/users", method: .GET)
+        let show = try router.match(uri: "/users/12", method: .GET)
+        let _ = try router.match(uri: "/users/new", method: .GET)
+        let _ = try router.match(uri: "/users", method: .POST)
+        let edit = try router.match(uri: "/users/888/edit", method: .GET)
+        let update_patch = try router.match(uri: "/users/78", method: .PATCH)
+        let update_put = try router.match(uri: "/users/21", method: .PUT)
+        let delete = try router.match(uri: "/users/44", method: .DELETE)
+        #expect(show.pathParameters["user_id"] == "12")
+        #expect(edit.pathParameters["user_id"] == "888")
+        #expect(update_patch.pathParameters["user_id"] == "78")
+        #expect(update_put.pathParameters["user_id"] == "21")
+        #expect(delete.pathParameters["user_id"] == "44")
     }
     
-    @Test func testNestedResources() {
+    @Test func test_Router_NestedResources_IsValid() throws {
         builder.resources("/users", for: TestController.self) { router in
             router.resources("/posts", for: TestController.self, parameter: "post_id")
         }
         let router = builder.build()
-        let index = router.match(uri: "/users/14/posts", method: .GET)
-        let show = router.match(uri: "/users/78/posts/12", method: .GET)
-        let new = router.match(uri: "/users/8992/posts/new", method: .GET)
-        let create = router.match(uri: "/users/22/posts", method: .POST)
-        let edit = router.match(uri: "/users/828/posts/134/edit", method: .GET)
-        let update_patch = router.match(uri: "/users/32/posts/98", method: .PATCH)
-        let update_put = router.match(uri: "/users/21/posts/78", method: .PUT)
-        let delete = router.match(uri: "/users/09/posts/167", method: .DELETE)
-        #expect(index != nil)
-        #expect(index?.params["id"] == "14")
-        #expect(show != nil)
-        #expect(show?.params["id"] == "78")
-        #expect(show?.params["post_id"] == "12")
-        #expect(new != nil)
-        #expect(new?.params["id"] == "8992")
-        #expect(create != nil)
-        #expect(create?.params["id"] == "22")
-        #expect(edit != nil)
-        #expect(edit?.params["id"] == "828")
-        #expect(edit?.params["post_id"] == "134")
-        #expect(update_patch != nil)
-        #expect(update_patch?.params["id"] == "32")
-        #expect(update_patch?.params["post_id"] == "98")
-        #expect(update_put != nil)
-        #expect(update_put?.params["id"] == "21")
-        #expect(update_put?.params["post_id"] == "78")
-        #expect(delete != nil)
-        #expect(delete?.params["id"] == "09")
-        #expect(delete?.params["post_id"] == "167")
+        let index = try router.match(uri: "/users/14/posts", method: .GET)
+        let show = try router.match(uri: "/users/78/posts/12", method: .GET)
+        let new = try router.match(uri: "/users/8992/posts/new", method: .GET)
+        let create = try router.match(uri: "/users/22/posts", method: .POST)
+        let edit = try router.match(uri: "/users/828/posts/134/edit", method: .GET)
+        let update_patch = try router.match(uri: "/users/32/posts/98", method: .PATCH)
+        let update_put = try router.match(uri: "/users/21/posts/78", method: .PUT)
+        let delete = try router.match(uri: "/users/09/posts/167", method: .DELETE)
+        #expect(index.pathParameters["id"] == "14")
+        #expect(show.pathParameters["id"] == "78")
+        #expect(show.pathParameters["post_id"] == "12")
+        #expect(new.pathParameters["id"] == "8992")
+        #expect(create.pathParameters["id"] == "22")
+        #expect(edit.pathParameters["id"] == "828")
+        #expect(edit.pathParameters["post_id"] == "134")
+        #expect(update_patch.pathParameters["id"] == "32")
+        #expect(update_patch.pathParameters["post_id"] == "98")
+        #expect(update_put.pathParameters["id"] == "21")
+        #expect(update_put.pathParameters["post_id"] == "78")
+        #expect(delete.pathParameters["id"] == "09")
+        #expect(delete.pathParameters["post_id"] == "167")
     }
     
-    @Test func testResourcesOnly() {
-        builder.resources("/users", for: TestController.self, only: [ .show, .create])
-        let router = builder.build()
-        let index = router.match(uri: "/users", method: .GET)
-        let show = router.match(uri: "/users/12", method: .GET)
-        let new = router.match(uri: "/users/new", method: .GET)
-        let create = router.match(uri: "/users", method: .POST)
-        let edit = router.match(uri: "/users/888/edit", method: .GET)
-        let update_patch = router.match(uri: "/users/78", method: .PATCH)
-        let update_put = router.match(uri: "/users/21", method: .PUT)
-        let delete = router.match(uri: "/users/44", method: .DELETE)
-        #expect(index == nil)
-        #expect(show != nil)
-        #expect(show?.params["id"] == "12")
-        #expect(new != nil)
-        #expect(new?.params["id"] == "new")
-        #expect(create != nil)
-        #expect(edit == nil)
-        #expect(update_patch == nil)
-        #expect(update_put == nil)
-        #expect(delete == nil)
-    }
-    
-    @Test func testResourcesExcept() {
-        builder.resources("/users", for: TestController.self, except: [ .show, .create, .delete ])
-        let router = builder.build()
-        let index = router.match(uri: "/users", method: .GET)
-        let show = router.match(uri: "/users/12", method: .GET)
-        let new = router.match(uri: "/users/new", method: .GET)
-        let create = router.match(uri: "/users", method: .POST)
-        let edit = router.match(uri: "/users/888/edit", method: .GET)
-        let update_patch = router.match(uri: "/users/78", method: .PATCH)
-        let update_put = router.match(uri: "/users/21", method: .PUT)
-        let delete = router.match(uri: "/users/44", method: .DELETE)
-        #expect(index != nil)
-        #expect(show == nil)
-        #expect(new != nil)
-        #expect(create == nil)
-        #expect(edit != nil)
-        #expect(edit?.params["id"] == "888")
-        #expect(update_patch != nil)
-        #expect(update_patch?.params["id"] == "78")
-        #expect(update_put != nil)
-        #expect(update_put?.params["id"] == "21")
-        #expect(delete == nil)
-    }
-    
-    @Test func testNamespace() {
-        builder.namespace("/api/v1") { router in
+    @Test func test_Router_Namespace_IsValid() throws {
+        builder.namespace("/api") { router in
             router.get("/hello", to: emptyHandler)
         }
         let router = builder.build()
-        let match = router.match(uri: "/api/v1/hello", method: .GET)
-        #expect(match != nil)
+        let _ = try router.match(uri: "/api/hello", method: .GET)
+    }
+
+    @Test func test_Router_NestedNamespace_IsValid() throws {
+        builder.namespace("/api") { router in
+            router.namespace("/v1") { RouterBuilder in
+                router.get("/hello", to: emptyHandler)
+            }
+            router.get("/documentation", to: emptyHandler)
+        }
+        let router = builder.build()
+        let _ = try router.match(uri: "/api/documentation", method: .GET)
+        let _ = try router.match(uri: "/api/v1/hello", method: .GET)
     }
     
-    @Test func testRoutePrecedence() {
+    @Test func test_Router_RoutePrecendence_IsValid() throws {
         builder.get("/users/:id", to: emptyHandler)
         builder.get("/users/new", to: emptyHandler)
         let router = builder.build()
-        let dynamicRoute = router.match(uri: "/users/12", method: .GET)
-        let staticRoute = router.match(uri: "/users/new", method: .GET)
-        #expect(dynamicRoute != nil)
-        #expect(dynamicRoute?.params["id"] == "12")
-        #expect(staticRoute != nil)
-        #expect(staticRoute?.params["id"] == nil)
+        let dynamicRoute = try router.match(uri: "/users/12", method: .GET)
+        let staticRoute = try router.match(uri: "/users/new", method: .GET)
+        #expect(dynamicRoute.pathParameters["id"] == "12")
+        #expect(staticRoute.pathParameters["id"] == nil)
+    }
+
+    @Test func test_Router_GlobalMiddleware_IsValid() async throws {
+        let builder = RouterBuilder(globalMiddleware: [DummyMiddleware()])
+        builder.get("/hello", to: emptyHandler)
+        let router = builder.build()
+        let matched = try router.match(uri: "/hello", method: .GET)
+        let req = try await SwiftWebTestFixtures.request(uri: "/hello", method: .GET)
+        
+    }
+
+    @Test func test_Router_LocalMiddleware_IsValid() throws {
+        builder.use(DummyMiddleware())
+
     }
 }

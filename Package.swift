@@ -69,7 +69,7 @@ let package = Package(
         ),
         .testTarget( 
             name: "SwiftWebCoreTests",
-            dependencies: ["SwiftWebCore"]
+            dependencies: ["SwiftWebCore", "SwiftDB"]
         )
     ]
 )

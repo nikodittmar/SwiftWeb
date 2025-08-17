@@ -6,40 +6,20 @@
 //
 import NIOHTTP1
 
-public protocol Controller: Sendable {
+public protocol ResourcefulController: Controller {
     init()
-    @Sendable func index(req: Request) -> Response
-    @Sendable func show(req: Request) -> Response
-    @Sendable func new(req: Request) -> Response
-    @Sendable func create(req: Request) -> Response
-    @Sendable func edit(req: Request) -> Response
-    @Sendable func update(req: Request) -> Response
-    @Sendable func destroy(req: Request) -> Response
+    @Sendable func index(req: Request) async throws -> Response
+    @Sendable func show(req: Request) async throws -> Response
+    @Sendable func new(req: Request) async throws -> Response
+    @Sendable func create(req: Request) async throws -> Response
+    @Sendable func edit(req: Request) async throws -> Response
+    @Sendable func update(req: Request) async throws -> Response
+    @Sendable func destroy(req: Request) async throws -> Response
 }
 
+public protocol Controller: Sendable {}
+
 public extension Controller {
-    @Sendable func index(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    @Sendable func show(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    @Sendable func new(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    @Sendable func create(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    @Sendable func edit(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    @Sendable func update(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    @Sendable func destroy(req: Request) -> Response {
-        return Response(status: .notImplemented)
-    }
-    
     private var resourceName: String {
         let typeName = String(describing: type(of: self))
         let withoutSuffix = typeName.hasSuffix("Controller") ? String(typeName.dropLast(10)) : typeName
