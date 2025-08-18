@@ -207,16 +207,15 @@ import SwiftWebCore
     func test_Model_FindBy_IsValid() async throws {
         try await seedBookData()
 
-        let orwellBook = try await Book.findBy("author", is: "George Orwell", on: db)
-        #expect(orwellBook != nil)
+        let _ = try await Book.findBy("author", is: "George Orwell", on: db)
 
         let tolkienBook = try await Book.findBy("title", is: "The Hobbit", on: db)
-        #expect(tolkienBook != nil)
-        #expect(tolkienBook?.author == "J.R.R. Tolkien")
-        #expect(tolkienBook?.id == 3)
+        #expect(tolkienBook.author == "J.R.R. Tolkien")
+        #expect(tolkienBook.id == 3)
         
-        let nonExistentBook = try await Book.findBy("author", is: "Jane Austen", on: db)
-        #expect(nonExistentBook == nil)
+        await #expect(throws: SwiftWebError.self) {
+            let _ = try await Book.findBy("author", is: "Jane Austen", on: self.db)
+        }
     }
 
     @Test("Model.find(where:) returns all matching models")
@@ -257,7 +256,6 @@ import SwiftWebCore
         let names = Set(midInventoryWidgets.map { $0.name })
         #expect(names == Set(["Thingo", "Sprocket"]))
 
-        let firstMidInventory = try await Widget.first(where: "inventory", .equals, 50, on: db)
-        #expect(firstMidInventory != nil)
+        let _ = try await Widget.first(where: "inventory", .equals, 50, on: db)
     }
 }

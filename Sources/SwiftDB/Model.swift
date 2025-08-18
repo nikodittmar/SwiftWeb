@@ -158,7 +158,7 @@ extension Model {
         return model
     }
 
-        public static func first(where column: String, _ op: QueryOperator, _ value: PostgresEncodable, on db: Database) async throws -> Self? {
+    public static func first(where column: String, _ op: QueryOperator, _ value: PostgresEncodable, on db: Database) async throws -> Self {
         let sql = "SELECT * FROM \"\(Self.schema)\" WHERE \"\(column)\" \(op.rawValue) $1 LIMIT 1"
         
         var bindings = PostgresBindings(capacity: 1)
@@ -167,13 +167,12 @@ extension Model {
         let query = PostgresQuery(unsafeSQL: sql, binds: bindings)
         
         guard let row = try await db.query(query).collect().first else {
-            return nil
+            throw SwiftWebError(type: .notFound, reason: "A model of type '\(Self.self)' was not found where `\(column)` \(op.rawValue) \(String(describing: value))")
         }
         
         let decoder = PostgresDecoder()
         let model = try decoder.decode(Self.self, from: row.makeRandomAccess())
         
-        // Cache the result if found
         if let id = model.id {
             let key = Self.cacheKey(id: id)
             try await db.cache.set(key, to: model)
@@ -182,7 +181,6 @@ extension Model {
         return model
     }
 
-    // New: A flexible method to find all models matching a condition.
     public static func find(where column: String, _ op: QueryOperator, _ value: PostgresEncodable, on db: Database) async throws -> [Self] {
         let sql = "SELECT * FROM \"\(Self.schema)\" WHERE \"\(column)\" \(op.rawValue) $1"
 
@@ -208,13 +206,10 @@ extension Model {
         return models
     }
 
-    // New: Convenience method to find a single model by a column's value.
-    // This is the one that matches your requested API: User.findBy("username", is: "test", on: db)
-    public static func findBy(_ column: String, is value: PostgresEncodable, on db: Database) async throws -> Self? {
+    public static func findBy(_ column: String, is value: PostgresEncodable, on db: Database) async throws -> Self {
         return try await first(where: column, .equals, value, on: db)
     }
     
-    // New: Convenience method to find multiple models by a column's value.
     public static func find(where column: String, is value: PostgresEncodable, on db: Database) async throws -> [Self] {
         return try await find(where: column, .equals, value, on: db)
     }
