@@ -32,7 +32,9 @@ struct ServerCommand<T: SwiftWebConfig>: AsyncParsableCommand {
 
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         
-        let router: Router = T.configureRoutes()
+        let middleware = T.configureMiddleware()  
+        let builder = RouterBuilder(globalMiddleware: middleware)      
+        let router: Router = T.configureRoutes(builder: builder)
         
         let viewsDirectory = T.viewsDirectory
         

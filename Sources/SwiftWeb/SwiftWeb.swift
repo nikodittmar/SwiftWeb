@@ -19,7 +19,8 @@ public protocol SwiftWebConfig {
     static var dotEnvPath: URL { get }
     static var maintenanceDBName: String { get }
 
-    static func configureRoutes() -> Router
+    static func configureRoutes(builder: RouterBuilder) -> Router
+    static func configureMiddleware() -> [any Middleware]
 }
 
 extension SwiftWebConfig {

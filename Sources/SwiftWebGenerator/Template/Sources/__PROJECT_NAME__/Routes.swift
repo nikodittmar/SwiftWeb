@@ -1,18 +1,17 @@
 import SwiftWeb
 
 /// This function is called on startup to register all of your application's routes.
-func routes() -> Router {
-    let router = RouterBuilder()
+func routes(_ routes: RouterBuilder) -> Router {
     
     // -------------------------------------------------------
     //  Add your routes here.
     //
     //  Examples:
-    //  router.get("/", to: UsersController().index)
-    //  router.resources("/posts", for: PostsController.self)
+    //  routes.get("/", to: UsersController().index)
+    //  routes.resources("/posts", for: PostsController.self)
     // -------------------------------------------------------
     
-    router.get("/", to: HelloController().hello)
+    routes.get("/", to: HelloController().hello)
     
-    return router.build()
+    return routes.build()
 }

@@ -16,7 +16,7 @@ struct RoutesCommand<T: SwiftWebConfig>: ParsableCommand {
     
     func run() throws {
         print(swiftweb: "📜 Registered Routes:")
-        let router = T.configureRoutes()
+        let router = T.configureRoutes(builder: RouterBuilder())
         router.printRoutes()
     }
 }
