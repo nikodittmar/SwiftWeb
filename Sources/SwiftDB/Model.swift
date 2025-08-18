@@ -8,6 +8,15 @@ import Foundation
 import PostgresNIO
 import SwiftWebCore
 
+public enum QueryOperator: String {
+    case equals = "="
+    case notEquals = "!="
+    case greaterThan = ">"
+    case lessThan = "<"
+    case greaterThanOrEquals = ">="
+    case lessThanOrEquals = "<="
+}
+
 public protocol Model: Codable, Sendable {
     static var schema: String { get }
     var id: Int? { get set }
@@ -147,6 +156,67 @@ extension Model {
         try await db.cache.set(key, to: model)
 
         return model
+    }
+
+        public static func first(where column: String, _ op: QueryOperator, _ value: PostgresEncodable, on db: Database) async throws -> Self? {
+        let sql = "SELECT * FROM \"\(Self.schema)\" WHERE \"\(column)\" \(op.rawValue) $1 LIMIT 1"
+        
+        var bindings = PostgresBindings(capacity: 1)
+        try bindings.append(value)
+        
+        let query = PostgresQuery(unsafeSQL: sql, binds: bindings)
+        
+        guard let row = try await db.query(query).collect().first else {
+            return nil
+        }
+        
+        let decoder = PostgresDecoder()
+        let model = try decoder.decode(Self.self, from: row.makeRandomAccess())
+        
+        // Cache the result if found
+        if let id = model.id {
+            let key = Self.cacheKey(id: id)
+            try await db.cache.set(key, to: model)
+        }
+        
+        return model
+    }
+
+    // New: A flexible method to find all models matching a condition.
+    public static func find(where column: String, _ op: QueryOperator, _ value: PostgresEncodable, on db: Database) async throws -> [Self] {
+        let sql = "SELECT * FROM \"\(Self.schema)\" WHERE \"\(column)\" \(op.rawValue) $1"
+
+        var bindings = PostgresBindings(capacity: 1)
+        try bindings.append(value)
+
+        let query = PostgresQuery(unsafeSQL: sql, binds: bindings)
+        let rows = try await db.query(query).collect()
+        
+        let decoder = PostgresDecoder()
+        let models = try rows.map { row in
+            try decoder.decode(Self.self, from: row.makeRandomAccess())
+        }
+
+        // Cache each returned model individually
+        for model in models {
+            if let id = model.id {
+                let key = Self.cacheKey(id: id)
+                try await db.cache.set(key, to: model)
+            }
+        }
+        
+        return models
+    }
+
+    // New: Convenience method to find a single model by a column's value.
+    // This is the one that matches your requested API: User.findBy("username", is: "test", on: db)
+    public static func findBy(_ column: String, is value: PostgresEncodable, on db: Database) async throws -> Self? {
+        return try await first(where: column, .equals, value, on: db)
+    }
+    
+    // New: Convenience method to find multiple models by a column's value.
+    public static func find(where column: String, is value: PostgresEncodable, on db: Database) async throws -> [Self] {
+        return try await find(where: column, .equals, value, on: db)
     }
 
     private static func cacheKey(id: Int) -> String {

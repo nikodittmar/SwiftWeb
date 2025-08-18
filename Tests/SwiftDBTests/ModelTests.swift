@@ -162,4 +162,102 @@ import SwiftWebCore
         #expect(savedPerson.hobbies[2] == "Travel")
     }
     */
+
+    struct CreateWidgets: Migration {
+        static let name: String = "20250818172000_CreateWidgets"
+
+        static func change(builder: SchemaBuilder) {
+            builder.createTable("widgets") { t in
+                t.column("name", type: "text")
+                t.column("inventory", type: "integer")
+            }
+        }
+    }
+
+    struct Widget: Model, Equatable {
+        static let schema: String = "widgets"
+
+        var id: Int?
+        var name: String
+        var inventory: Int
+    }
+
+    private func seedBookData() async throws {
+        var book1 = Book(title: "1984", author: "George Orwell")
+        var book2 = Book(title: "Animal Farm", author: "George Orwell")
+        var book3 = Book(title: "The Hobbit", author: "J.R.R. Tolkien")
+        try await book1.save(on: db)
+        try await book2.save(on: db)
+        try await book3.save(on: db)
+    }
+
+    private func seedWidgetData() async throws {
+        try await self.db.migrate([CreateWidgets.self])
+        var widget1 = Widget(name: "Gizmo", inventory: 10)
+        var widget2 = Widget(name: "Thingo", inventory: 50)
+        var widget3 = Widget(name: "Doohickey", inventory: 100)
+        var widget4 = Widget(name: "Sprocket", inventory: 50)
+        try await widget1.save(on: db)
+        try await widget2.save(on: db)
+        try await widget3.save(on: db)
+        try await widget4.save(on: db)
+    }
+
+    @Test("Model.findBy returns a single correct model or nil")
+    func test_Model_FindBy_IsValid() async throws {
+        try await seedBookData()
+
+        let orwellBook = try await Book.findBy("author", is: "George Orwell", on: db)
+        #expect(orwellBook != nil)
+
+        let tolkienBook = try await Book.findBy("title", is: "The Hobbit", on: db)
+        #expect(tolkienBook != nil)
+        #expect(tolkienBook?.author == "J.R.R. Tolkien")
+        #expect(tolkienBook?.id == 3)
+        
+        let nonExistentBook = try await Book.findBy("author", is: "Jane Austen", on: db)
+        #expect(nonExistentBook == nil)
+    }
+
+    @Test("Model.find(where:) returns all matching models")
+    func test_Model_FindWhere_IsValid() async throws {
+        try await seedBookData()
+
+        let orwellBooks = try await Book.find(where: "author", is: "George Orwell", on: db)
+        #expect(orwellBooks.count == 2)
+        let titles = Set(orwellBooks.map { $0.title })
+        #expect(titles == Set(["1984", "Animal Farm"]))
+
+        let tolkienBooks = try await Book.find(where: "author", is: "J.R.R. Tolkien", on: db)
+        #expect(tolkienBooks.count == 1)
+        #expect(tolkienBooks.first?.title == "The Hobbit")
+
+        let nonExistentBooks = try await Book.find(where: "author", is: "Jane Austen", on: db)
+        #expect(nonExistentBooks.isEmpty)
+    }
+    
+    @Test("Model.find with operators correctly filters results")
+    func test_Model_FindWithOperator_IsValid() async throws {
+        try await seedWidgetData()
+
+        let highInventoryWidgets = try await Widget.find(where: "inventory", .greaterThan, 50, on: db)
+        #expect(highInventoryWidgets.count == 1)
+        #expect(highInventoryWidgets.first?.name == "Doohickey")
+        #expect(highInventoryWidgets.first?.inventory == 100)
+        
+        let lowInventoryWidgets = try await Widget.find(where: "inventory", .lessThanOrEquals, 10, on: db)
+        #expect(lowInventoryWidgets.count == 1)
+        #expect(lowInventoryWidgets.first?.name == "Gizmo")
+
+        let notGizmos = try await Widget.find(where: "name", .notEquals, "Gizmo", on: db)
+        #expect(notGizmos.count == 3)
+        
+        let midInventoryWidgets = try await Widget.find(where: "inventory", .equals, 50, on: db)
+        #expect(midInventoryWidgets.count == 2)
+        let names = Set(midInventoryWidgets.map { $0.name })
+        #expect(names == Set(["Thingo", "Sprocket"]))
+
+        let firstMidInventory = try await Widget.first(where: "inventory", .equals, 50, on: db)
+        #expect(firstMidInventory != nil)
+    }
 }

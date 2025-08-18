@@ -12,6 +12,8 @@ public enum SchemaAction {
     case dropTable(TableDefinition)
     case addColumn(ColumnDefinition, to: String)
     case dropColumn(ColumnDefinition, from: String)
+    case addIndex(IndexDefinition)
+    case dropIndex(IndexDefinition)
 
     func upSql() -> String {
         switch self {
@@ -24,6 +26,12 @@ public enum SchemaAction {
             return "ALTER TABLE IF EXISTS \"\(tableName)\" ADD COLUMN \"\(definition.name)\" \(definition.type)"
         case .dropColumn(let definition, let tableName):
             return "ALTER TABLE IF EXISTS \"\(tableName)\" DROP COLUMN \"\(definition.name)\""
+        case .addIndex(let definition):
+            let uniqueSQL = definition.isUnique ? "UNIQUE " : ""
+            let columnsSQL = definition.columns.map { "\"\($0)\"" }.joined(separator: ", ")
+            return "CREATE \(uniqueSQL)INDEX \"\(definition.name)\" ON \"\(definition.tableName)\" (\(columnsSQL))"
+        case .dropIndex(let definition):
+            return "DROP INDEX IF EXISTS \"\(definition.name)\""
         }
     }
 
@@ -38,7 +46,27 @@ public enum SchemaAction {
             return "ALTER TABLE IF EXISTS \"\(tableName)\" DROP COLUMN \"\(definition.name)\""
         case .dropColumn(let definition, let tableName):
             return "ALTER TABLE IF EXISTS \"\(tableName)\" ADD COLUMN \"\(definition.name)\" \(definition.type)"
+        case .addIndex(let definition):
+            return "DROP INDEX IF EXISTS \"\(definition.name)\""
+        case .dropIndex(let definition):
+            let uniqueSQL = definition.isUnique ? "UNIQUE " : ""
+            let columnsSQL = definition.columns.map { "\"\($0)\"" }.joined(separator: ", ")
+            return "CREATE \(uniqueSQL)INDEX \"\(definition.name)\" ON \"\(definition.tableName)\" (\(columnsSQL))"
         }
+    }
+}
+
+public struct IndexDefinition {
+    public let tableName: String
+    public let columns: [String]
+    public let isUnique: Bool
+    public let name: String
+
+    public init(tableName: String, columns: [String], isUnique: Bool = false, name: String? = nil) {
+        self.tableName = tableName
+        self.columns = columns
+        self.isUnique = isUnique
+        self.name = name ?? "idx_\(tableName)_\(columns.joined(separator: "_"))"
     }
 }
 
@@ -77,6 +105,16 @@ public final class SchemaBuilder {
 
     public func dropColumn(_ name: String, type: String, table: String) {
         self.actions.append(.dropColumn(.init(name: name, type: type), from: table))
+    }
+
+    public func addIndex(on table: String, columns: [String], isUnique: Bool = false, name: String? = nil) {
+        let definition = IndexDefinition(tableName: table, columns: columns, isUnique: isUnique, name: name)
+        self.actions.append(.addIndex(definition))
+    }
+
+    public func dropIndex(on table: String, columns: [String], isUnique: Bool = false, name: String? = nil) {
+        let definition = IndexDefinition(tableName: table, columns: columns, isUnique: isUnique, name: name)
+        self.actions.append(.dropIndex(definition))
     }
 }
 
