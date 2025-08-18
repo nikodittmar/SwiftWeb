@@ -24,16 +24,18 @@ public struct Request: Sendable {
     public lazy var cookies: [String: String] = {
         return Self.parseCookies(from: self.headers)
     }()
+    public var context: [String: Sendable]
 
     public let app: Application
     
-    public init(head: HTTPRequestHead, body: ByteBuffer?, params: [String: String], query: [String: String], app: Application) {
+    public init(head: HTTPRequestHead, body: ByteBuffer?, params: [String: String], query: [String: String], app: Application, context: [String: Sendable] = [:]) {
         self.head = head
         self.body = body
         self.path = head.uri
         self.params = params
         self.query = query
         self.app = app
+        self.context = context
     }
 
     public func get<T: LosslessStringConvertible>(param: String, as type: T.Type = T.self) throws -> T {
@@ -55,6 +57,30 @@ public struct Request: Sendable {
 
         guard let value = T(stringValue) else {
             throw SwiftWebError(type: .badRequest, reason: "Query parameter '\(query)' with value '\(stringValue)' could not be converted to type '\(T.self)'.")
+        }
+
+        return value
+    }
+
+    public func get<T: Sendable>(context: String, as type: T.Type = T.self) throws -> T {
+        guard let value = self.context[context] else {
+            throw SwiftWebError(type: .internalServerError, reason: "Context object '\(context)' not found. This indicates a server-side configuration error.")
+        }
+
+        guard let value = value as? T else {
+            throw SwiftWebError(type: .badRequest, reason: "Context object '\(context)' with value '\(value)' could not be converted to type '\(T.self)'.")
+        }
+
+        return value
+    }
+
+    mutating public func get<T: Sendable>(cookie: String, as type: T.Type = T.self) throws -> T {
+        guard let value = self.cookies[cookie] else {
+            throw SwiftWebError(type: .internalServerError, reason: "Cookie '\(cookie)' not found. This indicates a server-side configuration error.")
+        }
+
+        guard let value = value as? T else {
+            throw SwiftWebError(type: .badRequest, reason: "Cookie '\(cookie)' with value '\(value)' could not be converted to type '\(T.self)'.")
         }
 
         return value
@@ -95,6 +121,16 @@ public struct Request: Sendable {
             }
         }
         return cookies
+    }
+
+    public mutating func setSession(_ key: String, to value: String?) {
+        let session = try! get(context: "session", as: Session.self)
+        session.set(key, to: value)
+    }
+
+    public func getSession(_ key: String) -> String? {
+        let session = try! get(context: "session", as: Session.self)
+        return session.get(key)
     }
 
 }
