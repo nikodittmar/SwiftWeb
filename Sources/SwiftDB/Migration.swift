@@ -130,3 +130,23 @@ extension Database {
     }
 }
 
+extension Migration {
+    public static func up(on connection: PostgresConnection) async throws {
+        let builder = SchemaBuilder()
+        change(builder: builder)
+
+        for action in builder.actions {
+            _ = try await connection.query(action.upSql()).get()
+        }
+    }
+
+    public static func down(on connection: PostgresConnection) async throws {
+        let builder = SchemaBuilder()
+        change(builder: builder)
+
+        for action in builder.actions.reversed() {
+            _ = try await connection.query(action.downSql()).get()
+        }
+    }
+}
+

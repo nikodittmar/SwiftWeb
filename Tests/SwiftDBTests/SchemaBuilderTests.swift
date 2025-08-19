@@ -255,4 +255,70 @@ import PostgresNIO
         let tables = try await db.query("SELECT 1 FROM information_schema.tables WHERE table_name IN ('users', 'profiles')").collect()
         #expect(tables.isEmpty)
     }
+
+        @Test("CreateTable with default value generates correct SQL")
+    func test_SchemaBuilder_CreateTableWithDefault_IsValid() throws {
+        struct CreateTasksTable: Migration {
+            static let name = "20250819073000_CreateTasksTable"
+            static func change(builder: SchemaBuilder) {
+                builder.createTable("tasks") { t in
+                    t.column("description", type: .text, null: false)
+                    // Test default value for a boolean
+                    t.column("is_complete", type: .boolean, null: false, default: "false")
+                    // Test default value for a string, which requires single quotes
+                    t.column("priority", type: .string, null: false, default: "'normal'")
+                }
+            }
+        }
+        
+        let expectedUp = """
+        CREATE TABLE IF NOT EXISTS "tasks" ("id" SERIAL PRIMARY KEY, "description" TEXT NOT NULL, "is_complete" BOOLEAN NOT NULL DEFAULT false, "priority" VARCHAR NOT NULL DEFAULT 'normal')
+        """
+        
+        let testBuilder = SchemaBuilder()
+        CreateTasksTable.change(builder: testBuilder)
+        let action = try #require(testBuilder.actions.first)
+
+        #expect(action.upSql() == expectedUp)
+    }
+
+    @Test("Default value is applied on insert")
+    func test_SchemaBuilder_DefaultValueIntegration_IsValid() async throws {
+        struct CreateSettingsTable: Migration {
+            static let name = "20250819073100_CreateSettingsTable"
+            static func change(builder: SchemaBuilder) {
+                builder.createTable("settings") { t in
+                    t.column("dark_mode", type: .boolean, null: false, default: "true")
+                }
+            }
+        }
+
+        let migrations: [ExplicitMigration.Type] = [CreateSettingsTable.self]
+
+        let dbName: String = DatabaseTestHelpers.uniqueDatabaseName()
+        let db: Database = try await Database.create(name: dbName, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+        defer {
+            db.shutdown()
+            Task {
+                try await Database.drop(name: dbName, maintenanceConfig: DatabaseTestHelpers.maintenanceConfig, eventLoopGroup: DatabaseTestHelpers.eventLoopGroup)
+            }
+        }
+
+        // 1. Run the migration to create the table
+        try await db.migrate(migrations)
+
+        // 2. Insert a row without specifying the 'dark_mode' column
+        _ = try await db.query("INSERT INTO \"settings\" (id) VALUES (DEFAULT)").collect()
+
+        // 3. Fetch the row and verify the default value was applied
+        let rows = try await db.query("SELECT dark_mode FROM \"settings\" WHERE id = 1").collect()
+        let row = try #require(rows.first)
+        let darkModeValue = try row.decode(Bool.self)
+        #expect(darkModeValue == true)
+        
+        // 4. Rollback and ensure the table is gone
+        try await db.rollback(migrations, step: 1)
+        let tables = try await db.query("SELECT 1 FROM information_schema.tables WHERE table_name = 'settings'").collect()
+        #expect(tables.isEmpty)
+    }
 }

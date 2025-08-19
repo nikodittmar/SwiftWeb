@@ -54,13 +54,22 @@ public struct ColumnDefinition {
     public let name: String
     public let type: PostgresDataType
     public let null: Bool
+    public let defaultValue: String?
+
+    public init(name: String, type: PostgresDataType, null: Bool, defaultValue: String? = nil) {
+        self.name = name
+        self.type = type
+        self.null = null
+        self.defaultValue = defaultValue
+    }
     
     var sqlRepresentation: String {
         if type.sqlRepresentation.contains("PRIMARY KEY") {
             return "\"\((name))\" \(type.sqlRepresentation)"
         }
         let nullability = null ? "" : " NOT NULL"
-        return "\"\((name))\" \(type.sqlRepresentation)\(nullability)"
+        let defaultSQL = defaultValue.map { " DEFAULT \($0)" } ?? ""
+        return "\"\((name))\" \(type.sqlRepresentation)\(nullability)\(defaultSQL)"
     }
 }
 
@@ -95,8 +104,8 @@ public struct TableDefinition {
     fileprivate(set) var columns: [ColumnDefinition] = [.init(name: "id", type: .serialPrimaryKey, null: false)]
     fileprivate(set) var foreignKeys: [ForeignKeyConstraint] = []
 
-    public mutating func column(_ name: String, type: PostgresDataType, null: Bool = true) {
-        self.columns.append(.init(name: name, type: type, null: null))
+    public mutating func column(_ name: String, type: PostgresDataType, null: Bool = true, default defaultValue: String? = nil) {
+        self.columns.append(.init(name: name, type: type, null: null, defaultValue: defaultValue))
     }
     
     public mutating func references(_ tableName: String, null: Bool = false, onDelete: ForeignKeyAction = .cascade, onUpdate: ForeignKeyAction = .noAction) {
@@ -180,13 +189,13 @@ public final class SchemaBuilder {
         self.actions.append(.dropTable(table))
     }
 
-    public func addColumn(_ name: String, type: PostgresDataType, null: Bool = true, table: String) {
-        let column = ColumnDefinition(name: name, type: type, null: null)
+    public func addColumn(_ name: String, type: PostgresDataType, null: Bool = true, default defaultValue: String? = nil, table: String) {
+        let column = ColumnDefinition(name: name, type: type, null: null, defaultValue: defaultValue)
         self.actions.append(.addColumn(column, to: table))
     }
 
-    public func dropColumn(_ name: String, type: PostgresDataType, null: Bool = true, from table: String) {
-        let column = ColumnDefinition(name: name, type: type, null: null)
+    public func dropColumn(_ name: String, type: PostgresDataType, null: Bool = true, default defaultValue: String? = nil, from table: String) {
+        let column = ColumnDefinition(name: name, type: type, null: null, defaultValue: defaultValue)
         self.actions.append(.dropColumn(column, from: table))
     }
 
@@ -198,26 +207,6 @@ public final class SchemaBuilder {
     public func dropIndex(on table: String, columns: [String], isUnique: Bool = false, name: String? = nil) {
         let definition = IndexDefinition(tableName: table, columns: columns, isUnique: isUnique, name: name)
         self.actions.append(.dropIndex(definition))
-    }
-}
-
-extension Migration {
-    public static func up(on connection: PostgresConnection) async throws {
-        let builder = SchemaBuilder()
-        change(builder: builder)
-
-        for action in builder.actions {
-            _ = try await connection.query(action.upSql()).get()
-        }
-    }
-
-    public static func down(on connection: PostgresConnection) async throws {
-        let builder = SchemaBuilder()
-        change(builder: builder)
-
-        for action in builder.actions.reversed() {
-            _ = try await connection.query(action.downSql()).get()
-        }
     }
 }
 
