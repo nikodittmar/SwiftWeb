@@ -31,21 +31,24 @@ extension Model {
     }
 
     public mutating func save(on db: Database) async throws {
+        if let id = self.id {
+            try await self.performUpdate(id: id, on: db)
+        } else {
+            try await self.performInsert(on: db)
+        }
+    }
+
+    private mutating func performInsert(on db: Database) async throws {
         let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
         
         let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
-        let placeholderSQL = properties.enumerated().map({ (index, column) in
-            if column.type == .jsonb {
-                return "$\(index + 1)::jsonb"
-            } else {
-                return "$\(index + 1)"
-            }
+        let placeholderSQL = properties.enumerated().map({ (index, _) -> String in
+            return "$\(index + 1)"
         }).joined(separator: ", ")
         
-        let SQLString = "INSERT INTO \"\(Self.schema)\" (\(columnSQL)) VALUES (\(placeholderSQL)) RETURNING *"
+        let sql = "INSERT INTO \"\(Self.schema)\" (\(columnSQL)) VALUES (\(placeholderSQL)) RETURNING *"
         
         var bindings = PostgresBindings(capacity: properties.count)
-        
         for property in properties {
             guard let value = property.value else { 
                 throw SwiftWebError(type: .internalServerError, reason: "Failed to save model of type '\(Self.self)' because a property was unexpectedly nil.")
@@ -53,20 +56,49 @@ extension Model {
             try bindings.append(value)
         }
         
-        let query = PostgresQuery(unsafeSQL: SQLString, binds: bindings)
+        let query = PostgresQuery(unsafeSQL: sql, binds: bindings)
 
         guard let row = try await db.query(query).collect().first else {
             throw SwiftWebError(type: .internalServerError, reason: "Failed to save model of type '\(Self.self)': Database did not return the saved row.")
         }
 
-        let saved = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
+        self = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
         
-        if let id = saved.id {
+        if let id = self.id {
             let key = Self.cacheKey(id: id)
-            try await db.cache.set(key, to: saved)
+            try await db.cache.set(key, to: self)
         }
-    
-        self.id = saved.id
+    }
+
+    private mutating func performUpdate(id: Int, on db: Database) async throws {
+        let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
+        
+        let setSQL = properties.enumerated().map { (index, property) in
+            let placeholder = "$\(index + 1)"
+            return "\"\((property.name))\" = \(placeholder)"
+        }.joined(separator: ", ")
+        
+        let sql = "UPDATE \"\(Self.schema)\" SET \(setSQL) WHERE id = $\(properties.count + 1) RETURNING *"
+        
+        var bindings = PostgresBindings(capacity: properties.count + 1)
+        for property in properties {
+            guard let value = property.value else { 
+                throw SwiftWebError(type: .internalServerError, reason: "Failed to update model of type '\(Self.self)' because a property was unexpectedly nil.") 
+            }
+            try bindings.append(value)
+        }
+        bindings.append(id)
+        
+        let query = PostgresQuery(unsafeSQL: sql, binds: bindings)
+
+        guard let row = try await db.query(query).collect().first else {
+            throw SwiftWebError(type: .notFound, reason: "Failed to update model of type '\(Self.self)' with ID \(id): Row not found.")
+        }
+
+        self = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
+
+        let key: String = Self.cacheKey(id: id)
+        try await db.cache.set(key, to: self)
     }
 
     public func destroy(on db: Database) async throws {
@@ -82,46 +114,6 @@ extension Model {
         let key: String = Self.cacheKey(id: id)
         try await db.cache.delete(key)
     }
-
-    public mutating func update(on db: Database) async throws {
-        let id = try self.getId()
-        try await self.update(id: id, on: db)
-    }
-
-    public mutating func update(id: Int, on db: Database) async throws {
-        let properties = try PostgresEncoder().encode(self).filter { $0.name != "id" }
-        
-        let columnSQL = properties.map({ "\"\($0.name)\"" }).joined(separator: ", ")
-        let placeholderSQL = properties.enumerated().map({ (index, column) in
-            if column.type == .jsonb {
-                return "$\(index + 1)::jsonb"
-            } else {
-                return "$\(index + 1)"
-            }
-        }).joined(separator: ", ")
-        
-        let SQLString = "UPDATE \"\(Self.schema)\" SET (\(columnSQL)) = (\(placeholderSQL)) WHERE id = $\(properties.count + 1) RETURNING *"
-        
-        var bindings = PostgresBindings(capacity: properties.count + 1)
-        
-        for property in properties {
-            guard let value = property.value else { 
-                throw SwiftWebError(type: .internalServerError, reason: "Failed to update model of type '\(Self.self)' because a property was unexpectedly nil.") 
-            }
-            try bindings.append(value)
-        }
-
-        bindings.append(id)
-        
-        let query = PostgresQuery(unsafeSQL: SQLString, binds: bindings)
-
-        _ = try await db.query(query)
-
-        self.id = id
-
-        let key: String = Self.cacheKey(id: id)
-        try await db.cache.set(key, to: self)
-    }
     
     public static func all(on db: Database) async throws -> [Self] {
         let query = PostgresQuery(unsafeSQL: "SELECT * FROM \"\(Self.schema)\"")
@@ -136,25 +128,21 @@ extension Model {
     
     public static func find(id: Int, on db: Database) async throws -> Self {
         let key: String = Self.cacheKey(id: id)
-        if let model: Self = try? await db.cache.get(key) as? Self {
+        if let model = try? await db.cache.get(key) as? Self {
             return model
         }
 
         var bindings = PostgresBindings(capacity: 1)
         bindings.append(id)
         
-        let query = PostgresQuery(unsafeSQL: "SELECT * FROM \(Self.schema) WHERE id = $1 LIMIT 1", binds: bindings)
-        
-        let decoder = PostgresDecoder()
+        let query = PostgresQuery(unsafeSQL: "SELECT * FROM \"\(Self.schema)\" WHERE id = $1 LIMIT 1", binds: bindings)
         
         guard let row = try await db.query(query).collect().first else {
             throw SwiftWebError(type: .notFound, reason: "A model of type '\(Self.self)' with ID \(id) was not found.")
         }
 
-        let model = try decoder.decode(Self.self, from: row.makeRandomAccess())
-
+        let model = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
         try await db.cache.set(key, to: model)
-
         return model
     }
 
@@ -170,8 +158,7 @@ extension Model {
             throw SwiftWebError(type: .notFound, reason: "A model of type '\(Self.self)' was not found where `\(column)` \(op.rawValue) \(String(describing: value))")
         }
         
-        let decoder = PostgresDecoder()
-        let model = try decoder.decode(Self.self, from: row.makeRandomAccess())
+        let model = try PostgresDecoder().decode(Self.self, from: row.makeRandomAccess())
         
         if let id = model.id {
             let key = Self.cacheKey(id: id)
@@ -195,7 +182,6 @@ extension Model {
             try decoder.decode(Self.self, from: row.makeRandomAccess())
         }
 
-        // Cache each returned model individually
         for model in models {
             if let id = model.id {
                 let key = Self.cacheKey(id: id)

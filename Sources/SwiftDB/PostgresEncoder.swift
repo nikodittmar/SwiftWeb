@@ -1,5 +1,5 @@
 //
-//  PostgresDecoder.swift
+//  PostgresEncoder.swift
 //  SwiftWeb
 //
 //  Created by Niko Dittmar on 7/18/25.
@@ -18,15 +18,13 @@ internal class PostgresEncoder {
 
 internal struct PostgresColumn {
     let name: String
-    let type: PostgresDataType
+    let type: PostgresNIO.PostgresDataType
     let value: PostgresEncodable?
 }
 
 private class _PostgresEncoder: Encoder {
     var codingPath: [any CodingKey] = []
-
     var userInfo: [CodingUserInfoKey : Any] = [:]
-
     var row: [PostgresColumn] = []
 
     func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
@@ -77,7 +75,7 @@ private class _PostgresEncoder: Encoder {
         mutating func encode(_ value: Bool, forKey key: Key) throws { self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .bool, value: value)) }
 
         mutating func encodeNil(forKey key: Key) throws { 
-            self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .unknown, value: nil))
+            self.encoder.row.append(PostgresColumn(name: key.stringValue, type: .text, value: nil))
         }
 
         mutating func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -100,8 +98,6 @@ private class _PostgresEncoder: Encoder {
     func unkeyedContainer() -> any UnkeyedEncodingContainer {
         fatalError("PostgresEncoder does not support encoding to a top-level array.")
     }
-
-
 
     func singleValueContainer() -> any SingleValueEncodingContainer {
         fatalError("PostgresEncoder does not support encoding to a top-level single value.")

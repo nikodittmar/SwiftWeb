@@ -2,57 +2,77 @@
 //  SchemaBuilder.swift
 //  SwiftWeb
 //
-//  Created by Niko Dittmar on 7/18/25.
+//  Created by Niko Dittmar on 8/18/25.
 //
 
 import PostgresNIO
+import Foundation
 
-public enum SchemaAction {
-    case createTable(TableDefinition)
-    case dropTable(TableDefinition)
-    case addColumn(ColumnDefinition, to: String)
-    case dropColumn(ColumnDefinition, from: String)
-    case addIndex(IndexDefinition)
-    case dropIndex(IndexDefinition)
-
-    func upSql() -> String {
+public enum PostgresDataType {
+    case serialPrimaryKey
+    case bigSerialPrimaryKey
+    case integer
+    case bigInt
+    case text
+    case string(length: Int?)
+    case timestamp
+    case boolean
+    case uuid
+    
+    public static var string: PostgresDataType {
+        return .string(length: nil)
+    }
+    
+    var sqlRepresentation: String {
         switch self {
-        case .createTable(let definition):
-            let columnsSQL = definition.columns.map { "\"\($0.name)\" \($0.type)" }.joined(separator: ", ")
-            return "CREATE TABLE IF NOT EXISTS \"\(definition.name)\" (\(columnsSQL))"
-        case .dropTable(let definition):
-            return "DROP TABLE IF EXISTS \"\(definition.name)\""
-        case .addColumn(let definition, let tableName):
-            return "ALTER TABLE IF EXISTS \"\(tableName)\" ADD COLUMN \"\(definition.name)\" \(definition.type)"
-        case .dropColumn(let definition, let tableName):
-            return "ALTER TABLE IF EXISTS \"\(tableName)\" DROP COLUMN \"\(definition.name)\""
-        case .addIndex(let definition):
-            let uniqueSQL = definition.isUnique ? "UNIQUE " : ""
-            let columnsSQL = definition.columns.map { "\"\($0)\"" }.joined(separator: ", ")
-            return "CREATE \(uniqueSQL)INDEX \"\(definition.name)\" ON \"\(definition.tableName)\" (\(columnsSQL))"
-        case .dropIndex(let definition):
-            return "DROP INDEX IF EXISTS \"\(definition.name)\""
+        case .serialPrimaryKey: return "SERIAL PRIMARY KEY"
+        case .bigSerialPrimaryKey: return "BIGSERIAL PRIMARY KEY"
+        case .integer: return "INTEGER"
+        case .bigInt: return "BIGINT"
+        case .text: return "TEXT"
+        case .string(let length):
+            if let length = length {
+                return "VARCHAR(\(length))"
+            }
+            return "VARCHAR"
+        case .timestamp: return "TIMESTAMP"
+        case .boolean: return "BOOLEAN"
+        case .uuid: return "UUID"
         }
     }
+}
 
-    func downSql() -> String {
-        switch self {
-        case .createTable(let definition):
-            return "DROP TABLE IF EXISTS \"\(definition.name)\""
-        case .dropTable(let definition):
-            let columnsSQL = definition.columns.map { "\"\($0.name)\" \($0.type)" }.joined(separator: ", ")
-            return "CREATE TABLE IF NOT EXISTS \"\(definition.name)\" (\(columnsSQL))"
-        case .addColumn(let definition, let tableName):
-            return "ALTER TABLE IF EXISTS \"\(tableName)\" DROP COLUMN \"\(definition.name)\""
-        case .dropColumn(let definition, let tableName):
-            return "ALTER TABLE IF EXISTS \"\(tableName)\" ADD COLUMN \"\(definition.name)\" \(definition.type)"
-        case .addIndex(let definition):
-            return "DROP INDEX IF EXISTS \"\(definition.name)\""
-        case .dropIndex(let definition):
-            let uniqueSQL = definition.isUnique ? "UNIQUE " : ""
-            let columnsSQL = definition.columns.map { "\"\($0)\"" }.joined(separator: ", ")
-            return "CREATE \(uniqueSQL)INDEX \"\(definition.name)\" ON \"\(definition.tableName)\" (\(columnsSQL))"
+public enum ForeignKeyAction: String {
+    case noAction = "NO ACTION"
+    case restrict = "RESTRICT"
+    case cascade = "CASCADE"
+    case setNull = "SET NULL"
+    case setDefault = "SET DEFAULT"
+}
+
+public struct ColumnDefinition {
+    public let name: String
+    public let type: PostgresDataType
+    public let null: Bool
+    
+    var sqlRepresentation: String {
+        if type.sqlRepresentation.contains("PRIMARY KEY") {
+            return "\"\((name))\" \(type.sqlRepresentation)"
         }
+        let nullability = null ? "" : " NOT NULL"
+        return "\"\((name))\" \(type.sqlRepresentation)\(nullability)"
+    }
+}
+
+public struct ForeignKeyConstraint {
+    public let column: String
+    public let referencesTable: String
+    public let referencesColumn: String
+    public let onDelete: ForeignKeyAction
+    public let onUpdate: ForeignKeyAction
+    
+    var sqlRepresentation: String {
+        return "FOREIGN KEY (\"\(column)\") REFERENCES \"\(referencesTable)\"(\"\(referencesColumn)\") ON DELETE \(onDelete.rawValue) ON UPDATE \(onUpdate.rawValue)"
     }
 }
 
@@ -72,16 +92,77 @@ public struct IndexDefinition {
 
 public struct TableDefinition {
     fileprivate let name: String
-    var columns: [ColumnDefinition] = [.init(name: "id", type: "SERIAL PRIMARY KEY")]
+    fileprivate(set) var columns: [ColumnDefinition] = [.init(name: "id", type: .serialPrimaryKey, null: false)]
+    fileprivate(set) var foreignKeys: [ForeignKeyConstraint] = []
 
-    public mutating func column(_ name: String, type: String) {
-        self.columns.append(.init(name: name, type: type))
+    public mutating func column(_ name: String, type: PostgresDataType, null: Bool = true) {
+        self.columns.append(.init(name: name, type: type, null: null))
+    }
+    
+    public mutating func references(_ tableName: String, null: Bool = false, onDelete: ForeignKeyAction = .cascade, onUpdate: ForeignKeyAction = .noAction) {
+        let columnName = "\(tableName)_id"
+        self.columns.append(.init(name: columnName, type: .integer, null: null))
+        self.foreignKeys.append(.init(
+            column: columnName,
+            referencesTable: tableName,
+            referencesColumn: "id",
+            onDelete: onDelete,
+            onUpdate: onUpdate
+        ))
     }
 }
 
-public struct ColumnDefinition {
-    public let name: String
-    public var type: String
+public enum SchemaAction {
+    case createTable(TableDefinition)
+    case dropTable(TableDefinition)
+    case addColumn(ColumnDefinition, to: String)
+    case dropColumn(ColumnDefinition, from: String)
+    case addIndex(IndexDefinition)
+    case dropIndex(IndexDefinition)
+
+    public func upSql() -> String {
+        switch self {
+        case .createTable(let definition):
+            let columnSQLs = definition.columns.map { $0.sqlRepresentation }
+            let foreignKeySQLs = definition.foreignKeys.map { $0.sqlRepresentation }
+            let allDefinitions = (columnSQLs + foreignKeySQLs).joined(separator: ", ")
+            return "CREATE TABLE IF NOT EXISTS \"\(definition.name)\" (\(allDefinitions))"
+        case .dropTable(let definition):
+            return "DROP TABLE IF EXISTS \"\(definition.name)\""
+        case .addColumn(let definition, let tableName):
+            return "ALTER TABLE IF EXISTS \"\(tableName)\" ADD COLUMN \(definition.sqlRepresentation)"
+        case .dropColumn(let definition, let tableName):
+            return "ALTER TABLE IF EXISTS \"\(tableName)\" DROP COLUMN \"\(definition.name)\""
+        case .addIndex(let definition):
+            let uniqueSQL = definition.isUnique ? "UNIQUE " : ""
+            let columnsSQL = definition.columns.map { "\"\($0)\"" }.joined(separator: ", ")
+            return "CREATE \(uniqueSQL)INDEX \"\(definition.name)\" ON \"\(definition.tableName)\" (\(columnsSQL))"
+        case .dropIndex(let definition):
+            return "DROP INDEX IF EXISTS \"\(definition.name)\""
+        }
+    }
+
+    public func downSql() -> String {
+        switch self {
+        case .createTable(let definition):
+            return "DROP TABLE IF EXISTS \"\(definition.name)\""
+        case .dropTable(let definition):
+            let columnSQLs = definition.columns.map { $0.sqlRepresentation }
+            let foreignKeySQLs = definition.foreignKeys.map { $0.sqlRepresentation }
+            let allDefinitions = (columnSQLs + foreignKeySQLs).joined(separator: ", ")
+            return "CREATE TABLE IF NOT EXISTS \"\(definition.name)\" (\(allDefinitions))"
+        case .addColumn(let definition, let tableName):
+            return "ALTER TABLE IF EXISTS \"\(tableName)\" DROP COLUMN \"\(definition.name)\""
+        case .dropColumn(let definition, let tableName):
+            return "ALTER TABLE IF EXISTS \"\(tableName)\" ADD COLUMN \(definition.sqlRepresentation)"
+        case .addIndex(let definition):
+            return "DROP INDEX IF EXISTS \"\(definition.name)\""
+        case .dropIndex(let definition):
+            let uniqueSQL = definition.isUnique ? "UNIQUE " : ""
+            let columnsSQL = definition.columns.map { "\"\($0)\"" }.joined(separator: ", ")
+            return "CREATE \(uniqueSQL)INDEX \"\(definition.name)\" ON \"\(definition.tableName)\" (\(columnsSQL))"
+        }
+    }
 }
 
 public final class SchemaBuilder {
@@ -99,12 +180,14 @@ public final class SchemaBuilder {
         self.actions.append(.dropTable(table))
     }
 
-    public func addColumn(_ name: String, type: String, table: String) {
-        self.actions.append(.addColumn(.init(name: name, type: type), to: table))
+    public func addColumn(_ name: String, type: PostgresDataType, null: Bool = true, table: String) {
+        let column = ColumnDefinition(name: name, type: type, null: null)
+        self.actions.append(.addColumn(column, to: table))
     }
 
-    public func dropColumn(_ name: String, type: String, table: String) {
-        self.actions.append(.dropColumn(.init(name: name, type: type), from: table))
+    public func dropColumn(_ name: String, type: PostgresDataType, null: Bool = true, from table: String) {
+        let column = ColumnDefinition(name: name, type: type, null: null)
+        self.actions.append(.dropColumn(column, from: table))
     }
 
     public func addIndex(on table: String, columns: [String], isUnique: Bool = false, name: String? = nil) {

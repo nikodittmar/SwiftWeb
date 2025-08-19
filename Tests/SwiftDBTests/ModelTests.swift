@@ -16,8 +16,8 @@ import SwiftWebCore
 
         static func change(builder: SchemaBuilder) {
             builder.createTable("books") { t in
-                t.column("title", type: "text")
-                t.column("author", type: "text")
+                t.column("title", type: .text)
+                t.column("author", type: .text)
             }
         }
     }
@@ -111,7 +111,7 @@ import SwiftWebCore
 
         book.title = "Swift on iOS!"
 
-        try await book.update(on: db)
+        try await book.save(on: db)
 
         let updatedBook = try await Book.find(id: 1, on: db)
 
@@ -168,8 +168,8 @@ import SwiftWebCore
 
         static func change(builder: SchemaBuilder) {
             builder.createTable("widgets") { t in
-                t.column("name", type: "text")
-                t.column("inventory", type: "integer")
+                t.column("name", type: .text)
+                t.column("inventory", type: .integer)
             }
         }
     }
